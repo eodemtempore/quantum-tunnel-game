@@ -7,3 +7,4 @@ dist/
 backups/
 public/tracks/*
 !public/tracks/.gitkeep
+!public/tracks/default.mp3

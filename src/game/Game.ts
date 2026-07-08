@@ -14,6 +14,9 @@ import { Tunnel } from './Tunnel';
 import { getStageForScore, LEVELS, LevelConfig } from './levels/LevelConfig';
 
 type GameMode = 'menu' | 'playing' | 'paused' | 'over';
+const SYNC_BONUS_SCORE = 500;
+const SYNC_BOOST_SECONDS = 6;
+const SYNC_SCORE_MULTIPLIER = 1.5;
 
 export class Game {
   private shell!: HTMLDivElement;
@@ -47,6 +50,7 @@ export class Game {
   private higgsAnnounced = false;
   private currentTrackName = 'Default Tunnel Track';
   private settings!: GameSettings;
+  private syncBoostTime = 0;
 
   constructor(private root: HTMLElement) {}
 
@@ -146,6 +150,7 @@ export class Game {
     this.score = 0;
     this.elapsed = 0;
     this.speed = 14;
+    this.syncBoostTime = 0;
     this.mode = 'playing';
     this.unlockMessage = '';
     this.higgsAnnounced = Storage.getUnlockedParticles().includes('higgs');
@@ -286,6 +291,7 @@ export class Game {
 
   private update(dt: number, energy: number): void {
     this.elapsed += dt;
+    this.syncBoostTime = Math.max(0, this.syncBoostTime - dt);
     const nextLevel = getStageForScore(this.score);
     if (nextLevel.level !== this.level.level || nextLevel.name !== this.level.name) {
       this.level = nextLevel;
@@ -313,12 +319,15 @@ export class Game {
     );
     for (const item of collected) {
       if (item === 'sync') {
-        this.score += 680 * this.particle.scoreMultiplier;
-        this.glitch = Math.max(this.glitch, 0.35);
+        this.score += SYNC_BONUS_SCORE * this.particle.scoreMultiplier;
+        this.syncBoostTime = Math.max(this.syncBoostTime, SYNC_BOOST_SECONDS);
+        this.glitch = Math.max(this.glitch, 0.65);
+        this.haptic([12, 18, 12]);
+        this.ui.notify(`Quantum Sync +${SYNC_BONUS_SCORE}: ${SYNC_SCORE_MULTIPLIER.toFixed(1)}x scoring.`);
       } else {
         this.player.activateShield();
         this.haptic([22, 20, 22]);
-        this.ui.notify('Green Guard online: 15 seconds.');
+        this.ui.notify(`Green Guard online: ${Math.round(this.particle.shieldDuration)} seconds.`);
       }
     }
 
@@ -334,7 +343,7 @@ export class Game {
     );
     for (const hit of hits) {
       if (hit.type === 'nearMiss') {
-        this.score += 240 * this.particle.scoreMultiplier;
+        this.score += 240 * this.particle.scoreMultiplier * this.getSyncMultiplier();
         this.glitch = 1;
       } else if (this.player.consumeShield()) {
         this.obstacles.remove(hit.obstacle);
@@ -351,7 +360,7 @@ export class Game {
       }
     }
 
-    this.score += dt * this.speed * 64 * this.particle.scoreMultiplier;
+    this.score += dt * this.speed * 64 * this.particle.scoreMultiplier * this.getSyncMultiplier();
     if (!this.higgsAnnounced && Math.max(this.score, this.highScore, Storage.getHighScore()) >= HIGGS_UNLOCK_SCORE) {
       this.higgsAnnounced = true;
       Storage.unlockParticle('higgs');
@@ -371,6 +380,8 @@ export class Game {
       trackName: this.currentTrackName,
       shieldRatio: this.player.getShieldRatio(),
       shieldSeconds: this.player.getShieldSeconds(),
+      syncSeconds: this.syncBoostTime,
+      syncMultiplier: this.getSyncMultiplier(),
       paused: this.mode === 'paused'
     });
   }
@@ -385,8 +396,14 @@ export class Game {
       trackName: this.currentTrackName,
       shieldRatio: this.player.getShieldRatio(),
       shieldSeconds: this.player.getShieldSeconds(),
+      syncSeconds: this.syncBoostTime,
+      syncMultiplier: this.getSyncMultiplier(),
       paused: this.mode === 'paused'
     });
+  }
+
+  private getSyncMultiplier(): number {
+    return this.syncBoostTime > 0 ? SYNC_SCORE_MULTIPLIER : 1;
   }
 
   private endRun(): void {

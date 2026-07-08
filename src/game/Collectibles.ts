@@ -82,16 +82,28 @@ export class Collectibles {
     this.collectibles = this.collectibles.filter((candidate) => candidate !== collectible);
   }
 
-  private createSyncMesh(): THREE.Mesh {
-    return new THREE.Mesh(
-      new THREE.SphereGeometry(0.24, 16, 12),
-      new THREE.MeshBasicMaterial({
-        color: '#7dffef',
-        transparent: true,
-        opacity: 0.9,
-        blending: THREE.AdditiveBlending
-      })
-    );
+  private createSyncMesh(): THREE.Group {
+    const group = new THREE.Group();
+    const blue = new THREE.MeshBasicMaterial({
+      color: '#22b7ff',
+      transparent: true,
+      opacity: 0.94,
+      blending: THREE.AdditiveBlending
+    });
+    const cyanWire = new THREE.MeshBasicMaterial({
+      color: '#7dffef',
+      transparent: true,
+      opacity: 0.68,
+      wireframe: true,
+      blending: THREE.AdditiveBlending
+    });
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.3, 18, 12), blue);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.026, 8, 30), cyanWire);
+    const crossRing = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.02, 8, 24), cyanWire.clone());
+    crossRing.rotation.x = Math.PI / 2;
+    group.add(core, ring, crossRing);
+    group.userData.kind = 'quantum-sync';
+    return group;
   }
 
   private createGuardMesh(): THREE.Group {

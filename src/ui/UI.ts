@@ -4,6 +4,19 @@ import { HIGGS_UNLOCK_SCORE, PARTICLES, ParticleId } from '../game/Particles';
 import { LevelConfig } from '../game/levels/LevelConfig';
 import { GameSettings } from '../storage/Storage';
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => {
+    const map: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    };
+    return map[char] ?? char;
+  });
+}
+
 export interface HudState {
   score: number;
   highScore: number;
@@ -13,6 +26,8 @@ export interface HudState {
   trackName: string;
   shieldRatio: number;
   shieldSeconds: number;
+  syncSeconds: number;
+  syncMultiplier: number;
   paused: boolean;
 }
 
@@ -132,6 +147,7 @@ export class UI {
         <div><span>Particle</span><strong data-hud-particle>Proton</strong></div>
         <div><span>Track</span><strong data-hud-track>Procedural</strong></div>
         <div class="guard-hud"><span>Guard</span><strong data-hud-shield>empty</strong></div>
+        <div class="sync-hud"><span>Sync</span><strong data-hud-sync>empty</strong></div>
         <div><span>High</span><strong data-hud-high>0</strong></div>
         <button class="pause-button" data-pause>Pause</button>
       </div>
@@ -148,6 +164,8 @@ export class UI {
     this.setText('[data-hud-track]', state.trackName);
     this.setText('[data-hud-shield]', state.shieldRatio > 0 ? `${Math.ceil(state.shieldSeconds)}s` : 'empty');
     this.hud.querySelector('.guard-hud')?.classList.toggle('active', state.shieldRatio > 0);
+    this.setText('[data-hud-sync]', state.syncSeconds > 0 ? `${state.syncMultiplier.toFixed(1)}x ${Math.ceil(state.syncSeconds)}s` : 'empty');
+    this.hud.querySelector('.sync-hud')?.classList.toggle('active', state.syncSeconds > 0);
     this.setText('[data-hud-high]', Math.floor(state.highScore).toLocaleString());
     this.setText('[data-pause]', state.paused ? 'Resume' : 'Pause');
   }
@@ -208,17 +226,23 @@ export class UI {
       <button class="particle-card ${this.selectedParticle === id ? 'selected' : ''} ${locked ? 'locked' : ''}" data-particle="${id}" ${locked ? 'disabled' : ''}>
         <span class="particle-orb" style="--orb:${particle.glow}; --orb2:${particle.secondaryGlow}"></span>
         <strong>${particle.name}</strong>
-        <small>${locked ? `Locked until ${HIGGS_UNLOCK_SCORE.toLocaleString()}` : particle.description}</small>
-        <span>Agility ${particle.agility.toFixed(2)} · Guard ${particle.shieldDuration.toFixed(0)}s · ×${particle.scoreMultiplier.toFixed(2)}</span>
+        <small>${locked ? `Locked until ${HIGGS_UNLOCK_SCORE.toLocaleString()} high score` : particle.description}</small>
+        <span>Speed ${particle.speed.toFixed(2)} · Handling ${particle.agility.toFixed(2)} · Hitbox ${particle.hitboxLabel}</span>
+        <span>Guard ${particle.shieldBehavior} · Score ×${particle.scoreMultiplier.toFixed(2)}</span>
+        <span>${particle.difficulty}: ${particle.playstyle}</span>
       </button>
     `;
   }
 
   private renderTrack(track: PlaylistEntry): string {
+    const title = escapeHtml(track.title);
+    const artist = escapeHtml(track.artist);
+    const mood = escapeHtml(track.mood);
+    const id = escapeHtml(track.id);
     return `
-      <button class="music-card ${this.selectedTrackId === track.id ? 'selected' : ''}" data-track="${track.id}">
-        <strong>${track.title}</strong>
-        <span>${track.artist} · ${track.mood}${track.bpm ? ` · ${track.bpm} BPM` : ''}</span>
+      <button class="music-card ${this.selectedTrackId === track.id ? 'selected' : ''}" data-track="${id}">
+        <strong>${title}</strong>
+        <span>${artist} · ${mood}${track.bpm ? ` · ${track.bpm} BPM` : ''}</span>
         <small>${track.source === 'admin' ? 'Admin-added local playlist' : 'Built-in game playlist'}</small>
       </button>
     `;
@@ -295,7 +319,14 @@ export class UI {
       <div class="particle-grid compact-grid">
         ${PARTICLES.map((particle) => this.renderParticleCard(particle.id)).join('')}
       </div>
-      <p class="guard-note">Guard activates when you collect the bright green horned token during a run. It lasts 15 seconds, shows a countdown, and absorbs the next red obstacle hit.</p>
+      <div class="how-play-panel">
+        <h3>Quantum Objects</h3>
+        <p><strong>Blue Sync Orb:</strong> +500 points and 1.5x scoring for 6 seconds. HUD shows the countdown.</p>
+        <p><strong>Green Guard:</strong> absorbs the next red obstacle hit while its timer is active. Duration depends on particle.</p>
+        <p><strong>Red Obstacles:</strong> collision ends the run unless Guard is active. Close passes score near-miss points.</p>
+        <p><strong>Levels:</strong> stages advance by score through Level 30, then Quantum Drift continues endlessly.</p>
+        <p><strong>Higgs Boson:</strong> unlocks after ${HIGGS_UNLOCK_SCORE.toLocaleString()} high score.</p>
+      </div>
     `;
   }
 
@@ -311,7 +342,7 @@ export class UI {
           ${this.playlist
             .map(
               (track) =>
-                `<option value="${track.id}" ${this.selectedTrackId === track.id ? 'selected' : ''}>${track.title} · ${track.mood}${track.bpm ? ` · ${track.bpm} BPM` : ''}</option>`
+                `<option value="${escapeHtml(track.id)}" ${this.selectedTrackId === track.id ? 'selected' : ''}>${escapeHtml(track.title)} · ${escapeHtml(track.mood)}${track.bpm ? ` · ${track.bpm} BPM` : ''}</option>`
             )
             .join('')}
         </select>
@@ -332,7 +363,7 @@ export class UI {
         <input type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-m4a,audio/mp4,audio/ogg,audio/*" data-upload />
       </label>
       <p class="muted small">Admin URL paths must be reachable by this browser. Local laptop files need this upload picker.</p>
-      ${this.audioState.error ? `<p class="warning">${this.audioState.error}</p>` : ''}
+      ${this.audioState.error ? `<p class="warning">${escapeHtml(this.audioState.error)}</p>` : ''}
     `;
   }
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GUARD_DURATION_SECONDS, ParticleDefinition } from './Particles';
+import { ParticleDefinition } from './Particles';
 
 export class Player {
   readonly group = new THREE.Group();
@@ -92,7 +92,7 @@ export class Player {
         this.shield.rotation.y += dt * 4.6;
         this.shield.rotation.x -= dt * 1.4;
         const material = this.shield.material as THREE.MeshBasicMaterial;
-        material.opacity = Math.max(0.2, Math.min(0.58, this.shieldTime / GUARD_DURATION_SECONDS + audioEnergy * 0.12));
+        material.opacity = Math.max(0.2, Math.min(0.58, this.shieldTime / this.particle.shieldDuration + audioEnergy * 0.12));
       }
     } else if (this.shield) {
       this.group.remove(this.shield);
@@ -103,7 +103,7 @@ export class Player {
   }
 
   activateShield(): void {
-    this.shieldTime = GUARD_DURATION_SECONDS;
+    this.shieldTime = this.particle.shieldDuration;
     this.collisionGraceTime = Math.max(this.collisionGraceTime, 0.45);
     if (!this.shield) {
       this.shield = new THREE.Mesh(
@@ -136,7 +136,7 @@ export class Player {
   }
 
   getShieldRatio(): number {
-    return Math.max(0, this.shieldTime / GUARD_DURATION_SECONDS);
+    return Math.max(0, this.shieldTime / this.particle.shieldDuration);
   }
 
   getShieldSeconds(): number {

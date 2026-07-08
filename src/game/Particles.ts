@@ -12,6 +12,10 @@ export interface ParticleDefinition {
   speed: number;
   shieldDuration: number;
   scoreMultiplier: number;
+  difficulty: string;
+  playstyle: string;
+  hitboxLabel: string;
+  shieldBehavior: string;
   lockedByDefault: boolean;
 }
 
@@ -31,6 +35,10 @@ export const PARTICLES: ParticleDefinition[] = [
     speed: 1,
     shieldDuration: GUARD_DURATION_SECONDS,
     scoreMultiplier: 1,
+    difficulty: 'Easy',
+    playstyle: 'Beginner all-rounder for learning 360 ring steering.',
+    hitboxLabel: 'Medium',
+    shieldBehavior: 'Normal 15s guard',
     lockedByDefault: false
   },
   {
@@ -43,8 +51,12 @@ export const PARTICLES: ParticleDefinition[] = [
     hitbox: 0.36,
     agility: 1.34,
     speed: 1.08,
-    shieldDuration: GUARD_DURATION_SECONDS,
+    shieldDuration: 11,
     scoreMultiplier: 1.04,
+    difficulty: 'Hard',
+    playstyle: 'Fast score chaser; small hitbox, sharp control, less guard time.',
+    hitboxLabel: 'Small',
+    shieldBehavior: 'Short 11s guard',
     lockedByDefault: false
   },
   {
@@ -57,8 +69,12 @@ export const PARTICLES: ParticleDefinition[] = [
     hitbox: 0.55,
     agility: 0.82,
     speed: 0.96,
-    shieldDuration: GUARD_DURATION_SECONDS,
-    scoreMultiplier: 1,
+    shieldDuration: 20,
+    scoreMultiplier: 0.98,
+    difficulty: 'Safe',
+    playstyle: 'Defensive survival pick with slower movement and longer guard uptime.',
+    hitboxLabel: 'Large',
+    shieldBehavior: 'Long 20s guard',
     lockedByDefault: false
   },
   {
@@ -73,6 +89,10 @@ export const PARTICLES: ParticleDefinition[] = [
     speed: 1.04,
     shieldDuration: GUARD_DURATION_SECONDS,
     scoreMultiplier: 1.18,
+    difficulty: 'Prestige',
+    playstyle: 'Rare balanced particle with premium aura and stronger score growth.',
+    hitboxLabel: 'Compact',
+    shieldBehavior: 'Prestige 15s guard',
     lockedByDefault: true
   }
 ];

@@ -2,14 +2,14 @@
   "name": "Quantum Tunnel",
   "short_name": "Q Tunnel",
   "description": "A mobile-first cyberpunk quantum tunnel racing game.",
-  "start_url": "/",
+  "start_url": ".",
   "display": "fullscreen",
   "orientation": "landscape",
   "background_color": "#020503",
   "theme_color": "#020503",
   "icons": [
     {
-      "src": "/icon.svg",
+      "src": "icon.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"

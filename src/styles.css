@@ -325,7 +325,9 @@ h2 {
 
 .tab-panel {
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  padding-right: 2px;
+  touch-action: pan-y;
 }
 
 .section-title,
@@ -368,7 +370,7 @@ h2 {
 }
 
 .particle-card {
-  min-height: 66px;
+  min-height: 92px;
 }
 
 .particle-card small,
@@ -402,7 +404,7 @@ h2 {
 }
 
 .particle-orb {
-  grid-row: span 3;
+  grid-row: span 5;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -491,6 +493,26 @@ h2 {
   font-size: 13px;
 }
 
+.how-play-panel {
+  margin: 10px 0 0;
+  border: 1px solid rgba(34, 183, 255, 0.24);
+  border-radius: 8px;
+  padding: 10px;
+  color: #c8f7ff;
+  background: rgba(0, 16, 28, 0.42);
+  font-size: 12px;
+}
+
+.how-play-panel h3 {
+  margin: 0 0 6px;
+  color: #7dffef;
+  font-size: 13px;
+}
+
+.how-play-panel p {
+  margin: 5px 0;
+}
+
 .warning,
 .unlock {
   margin: 12px 0 0;
@@ -575,6 +597,18 @@ h2 {
 .guard-hud.active strong {
   color: #95ffb7;
   text-shadow: 0 0 10px rgba(0, 255, 122, 0.75);
+}
+
+.sync-hud.active {
+  border-radius: 7px;
+  background: rgba(34, 183, 255, 0.13);
+  box-shadow: inset 0 0 18px rgba(34, 183, 255, 0.18), 0 0 18px rgba(125, 255, 239, 0.12);
+}
+
+.sync-hud.active span,
+.sync-hud.active strong {
+  color: #9eefff;
+  text-shadow: 0 0 10px rgba(34, 183, 255, 0.75);
 }
 
 .pause-button {
@@ -690,7 +724,7 @@ h2 {
   .hud-bottom {
     align-self: center;
     width: min(920px, 100%);
-    grid-template-columns: 1fr 1.6fr 1fr 1fr auto;
+    grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr auto;
   }
 
   .pause-button {
@@ -780,7 +814,7 @@ h2 {
   }
 
   .particle-card {
-    min-height: 52px;
+    min-height: 80px;
     padding: 7px;
   }
 
@@ -800,7 +834,8 @@ h2 {
   .upload-box,
   .select-box,
   .slider-row,
-  .guard-note {
+  .guard-note,
+  .how-play-panel {
     margin-top: 6px;
     padding: 7px;
   }

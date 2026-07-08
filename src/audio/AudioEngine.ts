@@ -8,6 +8,17 @@ export interface AudioState {
   error?: string;
 }
 
+export interface AudioDebugState {
+  contextState: string;
+  hasContext: boolean;
+  hasMediaElement: boolean;
+  hasBuffer: boolean;
+  muted: boolean;
+  volume: number;
+  isPlaying: boolean;
+  trackName: string;
+}
+
 type ScheduledNode = OscillatorNode | AudioBufferSourceNode;
 
 export class AudioEngine {
@@ -97,6 +108,7 @@ export class AudioEngine {
     }
     if (this.audioElement) {
       this.audioElement.muted = muted;
+      this.audioElement.volume = 1;
     }
   }
 
@@ -104,6 +116,9 @@ export class AudioEngine {
     this.volume = Math.max(0, Math.min(1, volume));
     if (this.master) {
       this.master.gain.setTargetAtTime(this.muted ? 0 : this.volume, this.context?.currentTime ?? 0, 0.03);
+    }
+    if (this.audioElement) {
+      this.audioElement.volume = 1;
     }
   }
 
@@ -226,8 +241,49 @@ export class AudioEngine {
     if (this.trackBuffer && !this.bufferSource) {
       this.startBufferTrack(this.trackBuffer, this.trackOffset);
     }
-    if (this.audioElement) await this.audioElement.play();
+    if (this.audioElement) {
+      this.audioElement.muted = false;
+      this.audioElement.volume = 1;
+      await this.audioElement.play();
+    }
     if (this.proceduralActive) this.scheduleProcedural();
+  }
+
+  async fixAudio(): Promise<AudioState> {
+    this.muted = false;
+    await this.ensureStarted();
+    if (this.master) {
+      this.master.gain.setTargetAtTime(this.volume, this.context?.currentTime ?? 0, 0.02);
+    }
+    if (this.audioElement) {
+      this.audioElement.muted = false;
+      this.audioElement.volume = 1;
+      await this.audioElement.play();
+    } else if (this.trackBuffer && !this.bufferSource) {
+      this.startBufferTrack(this.trackBuffer, this.trackOffset);
+    } else if (this.proceduralActive) {
+      this.scheduleProcedural();
+    }
+    this.isPlaying = true;
+    return this.getState();
+  }
+
+  async testSound(): Promise<void> {
+    await this.ensureStarted();
+    if (!this.context || !this.master) return;
+    const now = this.context.currentTime;
+    const osc = this.context.createOscillator();
+    const gain = this.context.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(660, now);
+    osc.frequency.exponentialRampToValueAtTime(990, now + 0.08);
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    osc.connect(gain);
+    gain.connect(this.master);
+    osc.start(now);
+    osc.stop(now + 0.24);
   }
 
   restartTrack(): void {
@@ -243,6 +299,8 @@ export class AudioEngine {
     if (this.audioElement) {
       this.audioElement.currentTime = 0;
       this.audioElement.playbackRate = 1;
+      this.audioElement.muted = false;
+      this.audioElement.volume = 1;
       void this.audioElement.play();
     }
   }
@@ -258,6 +316,19 @@ export class AudioEngine {
       trackName: this.selectedTrack ? this.selectedTrack.title : 'Procedural Soundtrack',
       usingUpload: this.selectedTrack?.source === 'upload',
       usingProcedural: this.proceduralActive
+    };
+  }
+
+  getDebugState(): AudioDebugState {
+    return {
+      contextState: this.context?.state ?? 'not-created',
+      hasContext: Boolean(this.context),
+      hasMediaElement: Boolean(this.audioElement),
+      hasBuffer: Boolean(this.trackBuffer),
+      muted: this.muted,
+      volume: this.volume,
+      isPlaying: this.isPlaying,
+      trackName: this.selectedTrack ? this.selectedTrack.title : 'Procedural Soundtrack'
     };
   }
 
@@ -283,7 +354,8 @@ export class AudioEngine {
     element.src = url;
     element.loop = false;
     element.preload = 'auto';
-    element.muted = this.muted;
+    element.muted = false;
+    element.volume = 1;
     element.playbackRate = 1;
     element.addEventListener('ended', () => {
       if (!this.isPlaying || !this.audioElement) return;

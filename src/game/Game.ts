@@ -4,7 +4,7 @@ import { PlaylistEntry, PlaylistManager } from '../audio/PlaylistManager';
 import { InputManager } from '../input/InputManager';
 import { AdminPlaylist } from '../ui/AdminPlaylist';
 import { UI } from '../ui/UI';
-import { Storage } from '../storage/Storage';
+import { isValidUsername, normalizeUsername, Storage } from '../storage/Storage';
 import { GameSettings } from '../storage/Storage';
 import { getParticle, HIGGS_UNLOCK_SCORE, ParticleDefinition, ParticleId } from './Particles';
 import { Collectibles } from './Collectibles';
@@ -51,11 +51,16 @@ export class Game {
   private currentTrackName = 'Default Tunnel Track';
   private settings!: GameSettings;
   private syncBoostTime = 0;
+  private username = 'Quantum Racer';
+  private usernameError = '';
+  private runSyncOrbs = 0;
+  private runNearMisses = 0;
 
   constructor(private root: HTMLElement) {}
 
   boot(): void {
     this.highScore = Storage.getHighScore();
+    this.username = Storage.getUsername();
     this.shell = document.createElement('div');
     this.shell.className = 'game-shell';
     this.canvasHost = document.createElement('div');
@@ -104,6 +109,12 @@ export class Game {
       onSetLaneMode: (laneMode) => this.updateSettings({ laneMode }),
       onSetHaptics: (hapticsEnabled) => this.updateSettings({ hapticsEnabled }),
       onRequestTilt: () => void this.enableTilt(),
+      onRecalibrateTilt: () => this.recalibrateTilt(),
+      onSetUsername: (username) => this.setUsername(username),
+      onSkipUsername: () => this.skipUsername(),
+      onRequestFullscreen: () => void this.enterFullscreen(),
+      onFixAudio: () => void this.fixAudio(),
+      onTestSound: () => void this.testSound(),
       onOpenAdmin: () => this.openAdmin(),
       onTrackControl: (control) => void this.trackControl(control)
     });
@@ -135,6 +146,9 @@ export class Game {
 
   private renderMenu(): void {
     this.highScore = Storage.getHighScore();
+    this.username = Storage.getUsername();
+    this.ui.setProfile(this.username, !Storage.hasUsername(), Storage.getProfileStats(), this.usernameError);
+    this.ui.setRuntimeStatus(this.audio.getDebugState(), this.input.getTiltDebug());
     this.ui.renderMenu(Storage.getUnlockedParticles(), this.playlist.getPublicPlaylist(), this.highScore);
   }
 
@@ -151,6 +165,8 @@ export class Game {
     this.elapsed = 0;
     this.speed = 14;
     this.syncBoostTime = 0;
+    this.runSyncOrbs = 0;
+    this.runNearMisses = 0;
     this.mode = 'playing';
     this.unlockMessage = '';
     this.higgsAnnounced = Storage.getUnlockedParticles().includes('higgs');
@@ -225,6 +241,67 @@ export class Game {
     }
   }
 
+  private recalibrateTilt(): void {
+    this.input.recalibrateTilt();
+    this.ui.notify('Tilt neutral recalibrated.');
+    this.renderMenu();
+  }
+
+  private async fixAudio(): Promise<void> {
+    try {
+      const state = await this.audio.fixAudio();
+      this.audio.setMuted(false);
+      this.ui.setAudioState(state);
+      this.updateSettings({ muted: false });
+      this.ui.notify('Audio resumed.');
+    } catch {
+      this.ui.notify('Audio could not start here. Tap Play / Fix Audio again.');
+    }
+  }
+
+  private async testSound(): Promise<void> {
+    try {
+      await this.audio.testSound();
+      this.ui.notify('Test sound played.');
+    } catch {
+      this.ui.notify('Test sound was blocked by the browser.');
+    }
+    this.renderMenu();
+  }
+
+  private async enterFullscreen(): Promise<void> {
+    try {
+      if (!this.shell.requestFullscreen) throw new Error('Fullscreen API unavailable.');
+      await this.shell.requestFullscreen();
+      document.body.classList.add('pseudo-fullscreen');
+      this.ui.notify('Fullscreen enabled.');
+    } catch {
+      document.body.classList.add('pseudo-fullscreen');
+      this.ui.notify('Using mobile fullscreen layout. Safari may limit real fullscreen.');
+    }
+    this.resize();
+  }
+
+  private setUsername(username: string): void {
+    const normalized = normalizeUsername(username);
+    if (!isValidUsername(normalized)) {
+      this.usernameError = 'Use 3-16 letters, numbers, spaces, underscores, or hyphens.';
+      this.renderMenu();
+      return;
+    }
+    Storage.setUsername(normalized);
+    this.username = normalized;
+    this.usernameError = '';
+    this.renderMenu();
+  }
+
+  private skipUsername(): void {
+    Storage.skipUsername();
+    this.username = Storage.getUsername();
+    this.usernameError = '';
+    this.renderMenu();
+  }
+
   private openAdmin(): void {
     this.mode = this.mode === 'playing' ? 'paused' : this.mode;
     this.admin.show();
@@ -251,6 +328,7 @@ export class Game {
 
   private exitToMenu(): void {
     if (this.mode === 'playing' || this.mode === 'paused') {
+      Storage.recordRunProgress(this.level.level, this.runSyncOrbs, this.runNearMisses);
       Storage.setHighScore(this.score);
       this.highScore = Storage.getHighScore();
     }
@@ -298,7 +376,7 @@ export class Game {
       this.scene.background = new THREE.Color(this.level.palette.background);
       this.scene.fog = new THREE.FogExp2(this.level.palette.background, 0.018);
       this.tunnel.setLevel(this.level);
-      this.ui.notify(`Level ${this.level.level}: ${this.level.name}`);
+      this.ui.notify(`Level ${this.level.level}: ${this.level.name} - ${this.level.signatureMechanic}`);
     }
 
     const speedRatio = Math.min(1.8, this.elapsed / 90);
@@ -319,6 +397,7 @@ export class Game {
     );
     for (const item of collected) {
       if (item === 'sync') {
+        this.runSyncOrbs += 1;
         this.score += SYNC_BONUS_SCORE * this.particle.scoreMultiplier;
         this.syncBoostTime = Math.max(this.syncBoostTime, SYNC_BOOST_SECONDS);
         this.glitch = Math.max(this.glitch, 0.65);
@@ -343,6 +422,7 @@ export class Game {
     );
     for (const hit of hits) {
       if (hit.type === 'nearMiss') {
+        this.runNearMisses += 1;
         this.score += 240 * this.particle.scoreMultiplier * this.getSyncMultiplier();
         this.glitch = 1;
       } else if (this.player.consumeShield()) {
@@ -377,6 +457,7 @@ export class Game {
       speed: this.speed / 10,
       level: this.level,
       particleName: this.particle.name,
+      username: this.username,
       trackName: this.currentTrackName,
       shieldRatio: this.player.getShieldRatio(),
       shieldSeconds: this.player.getShieldSeconds(),
@@ -393,6 +474,7 @@ export class Game {
       speed: this.speed / 10,
       level: this.level,
       particleName: this.particle.name,
+      username: this.username,
       trackName: this.currentTrackName,
       shieldRatio: this.player.getShieldRatio(),
       shieldSeconds: this.player.getShieldSeconds(),
@@ -409,6 +491,7 @@ export class Game {
   private endRun(): void {
     this.mode = 'over';
     this.audio.stopTrack(true);
+    Storage.recordRunProgress(this.level.level, this.runSyncOrbs, this.runNearMisses);
     Storage.setHighScore(this.score);
     if (this.score >= HIGGS_UNLOCK_SCORE) {
       Storage.unlockParticle('higgs');

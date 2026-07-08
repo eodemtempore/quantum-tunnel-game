@@ -2,7 +2,9 @@ import { AudioState } from '../audio/AudioEngine';
 import { PlaylistEntry } from '../audio/PlaylistManager';
 import { HIGGS_UNLOCK_SCORE, PARTICLES, ParticleId } from '../game/Particles';
 import { LevelConfig } from '../game/levels/LevelConfig';
-import { GameSettings } from '../storage/Storage';
+import { GameSettings, ProfileStats } from '../storage/Storage';
+import { AudioDebugState } from '../audio/AudioEngine';
+import { TiltDebugState } from '../input/InputManager';
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => {
@@ -23,6 +25,7 @@ export interface HudState {
   speed: number;
   level: LevelConfig;
   particleName: string;
+  username: string;
   trackName: string;
   shieldRatio: number;
   shieldSeconds: number;
@@ -46,6 +49,12 @@ interface UICallbacks {
   onSetLaneMode: (laneMode: boolean) => void;
   onSetHaptics: (enabled: boolean) => void;
   onRequestTilt: () => void;
+  onRecalibrateTilt: () => void;
+  onSetUsername: (username: string) => void;
+  onSkipUsername: () => void;
+  onRequestFullscreen: () => void;
+  onFixAudio: () => void;
+  onTestSound: () => void;
   onOpenAdmin: () => void;
   onTrackControl: (control: 'play' | 'pause' | 'restart') => void;
 }
@@ -69,6 +78,17 @@ export class UI {
     usingUpload: false,
     usingProcedural: false
   };
+  private username = 'Quantum Racer';
+  private needsUsername = false;
+  private usernameError = '';
+  private profileStats: ProfileStats = {
+    highestLevel: 1,
+    totalSyncOrbs: 0,
+    totalNearMisses: 0,
+    highScoreName: 'Quantum Racer'
+  };
+  private audioDebug?: AudioDebugState;
+  private tiltDebug?: TiltDebugState;
 
   constructor(
     private root: HTMLElement,
@@ -112,6 +132,8 @@ export class UI {
         <h1>Quantum Tunnel</h1>
         <p class="subtitle">Race as a subatomic particle through a collapsing neon quantum field.</p>
         <div class="score-strip">
+          <span>Racer</span>
+          <strong>${escapeHtml(this.username)}</strong>
           <span>High Score</span>
           <strong>${Math.floor(highScore).toLocaleString()}</strong>
           <span>Higgs unlocks at ${HIGGS_UNLOCK_SCORE.toLocaleString()} · After Level 30: Quantum Drift endless mode</span>
@@ -125,6 +147,7 @@ export class UI {
           ${this.renderTabButton('settings', 'iPhone')}
         </div>
         <div class="tab-panel">
+          ${this.needsUsername ? this.renderUsernamePrompt() : ''}
           ${this.renderActiveTab()}
         </div>
       </section>
@@ -140,11 +163,12 @@ export class UI {
       <button class="close-run" data-exit aria-label="Close game">×</button>
       <div class="hud-top">
         <div><span>Score</span><strong data-hud-score>0</strong></div>
-        <div><span>Level</span><strong data-hud-level>1. Quantum Awakening</strong></div>
+        <div><span>Level</span><strong data-hud-level>1. Quantum Awakening</strong><small data-hud-level-note></small></div>
         <div><span>Speed</span><strong data-hud-speed>0.0c</strong></div>
       </div>
       <div class="hud-bottom">
         <div><span>Particle</span><strong data-hud-particle>Proton</strong></div>
+        <div><span>Racer</span><strong data-hud-user>Quantum Racer</strong></div>
         <div><span>Track</span><strong data-hud-track>Procedural</strong></div>
         <div class="guard-hud"><span>Guard</span><strong data-hud-shield>empty</strong></div>
         <div class="sync-hud"><span>Sync</span><strong data-hud-sync>empty</strong></div>
@@ -159,8 +183,10 @@ export class UI {
   updateHud(state: HudState): void {
     this.setText('[data-hud-score]', Math.floor(state.score).toLocaleString());
     this.setText('[data-hud-level]', `${state.level.level}. ${state.level.name}`);
+    this.setText('[data-hud-level-note]', `${state.level.act} · ${state.level.difficultyLabel} · ${state.level.signatureMechanic}`);
     this.setText('[data-hud-speed]', `${state.speed.toFixed(1)}c`);
     this.setText('[data-hud-particle]', state.particleName);
+    this.setText('[data-hud-user]', state.username);
     this.setText('[data-hud-track]', state.trackName);
     this.setText('[data-hud-shield]', state.shieldRatio > 0 ? `${Math.ceil(state.shieldSeconds)}s` : 'empty');
     this.hud.querySelector('.guard-hud')?.classList.toggle('active', state.shieldRatio > 0);
@@ -182,6 +208,7 @@ export class UI {
           <div><span>High Score</span><strong>${Math.floor(highScore).toLocaleString()}</strong></div>
           <div><span>Level Reached</span><strong>${level.level}. ${level.name}</strong></div>
         </div>
+        <p class="run-summary">${escapeHtml(this.username)} reached ${Math.floor(finalScore).toLocaleString()}.</p>
         ${unlockMessage ? `<p class="unlock">${unlockMessage}</p>` : ''}
         <div class="button-row">
           <button class="primary" data-restart>Restart</button>
@@ -195,6 +222,18 @@ export class UI {
 
   setAudioState(state: AudioState): void {
     this.audioState = state;
+  }
+
+  setRuntimeStatus(audioDebug: AudioDebugState, tiltDebug: TiltDebugState): void {
+    this.audioDebug = audioDebug;
+    this.tiltDebug = tiltDebug;
+  }
+
+  setProfile(username: string, needsUsername: boolean, stats: ProfileStats, error = ''): void {
+    this.username = username;
+    this.needsUsername = needsUsername;
+    this.profileStats = stats;
+    this.usernameError = error;
   }
 
   setSettings(settings: GameSettings): void {
@@ -282,6 +321,9 @@ export class UI {
       const input = event.currentTarget as HTMLInputElement;
       this.callbacks.onSetVolume(Number(input.value) / 100);
     });
+    this.menu.querySelector('[data-fix-audio]')?.addEventListener('click', this.callbacks.onFixAudio);
+    this.menu.querySelector('[data-test-sound]')?.addEventListener('click', this.callbacks.onTestSound);
+    this.menu.querySelector('[data-fullscreen]')?.addEventListener('click', this.callbacks.onRequestFullscreen);
     this.menu.querySelector<HTMLInputElement>('[data-lane]')?.addEventListener('change', (event) => {
       const input = event.currentTarget as HTMLInputElement;
       this.callbacks.onSetLaneMode(input.checked);
@@ -291,6 +333,15 @@ export class UI {
       this.callbacks.onSetHaptics(input.checked);
     });
     this.menu.querySelector('[data-tilt]')?.addEventListener('click', this.callbacks.onRequestTilt);
+    this.menu.querySelector('[data-recalibrate-tilt]')?.addEventListener('click', this.callbacks.onRecalibrateTilt);
+    this.menu.querySelectorAll<HTMLFormElement>('[data-username-form]').forEach((form) => {
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const data = new FormData(form);
+        this.callbacks.onSetUsername(String(data.get('username') ?? ''));
+      });
+    });
+    this.menu.querySelector('[data-skip-username]')?.addEventListener('click', this.callbacks.onSkipUsername);
     this.menu.querySelectorAll<HTMLButtonElement>('[data-track-control]').forEach((button) => {
       button.addEventListener('click', () => this.callbacks.onTrackControl(button.dataset.trackControl as 'play' | 'pause' | 'restart'));
     });
@@ -327,6 +378,36 @@ export class UI {
         <p><strong>Levels:</strong> stages advance by score through Level 30, then Quantum Drift continues endlessly.</p>
         <p><strong>Higgs Boson:</strong> unlocks after ${HIGGS_UNLOCK_SCORE.toLocaleString()} high score.</p>
       </div>
+      ${this.renderProfileCard()}
+    `;
+  }
+
+  private renderUsernamePrompt(): string {
+    return `
+      <form class="profile-prompt" data-username-form>
+        <strong>Choose your racer name</strong>
+        <span>Stored locally on this device only. You can skip and use Quantum Racer.</span>
+        <input name="username" autocomplete="nickname" maxlength="16" placeholder="Quantum Racer" />
+        ${this.usernameError ? `<p class="warning">${escapeHtml(this.usernameError)}</p>` : ''}
+        <div class="button-row compact">
+          <button class="primary" type="submit">Save Name</button>
+          <button class="secondary" type="button" data-skip-username>Skip</button>
+        </div>
+      </form>
+    `;
+  }
+
+  private renderProfileCard(): string {
+    const higgsUnlocked = this.unlocked.includes('higgs') ? 'Unlocked' : `Locked until ${HIGGS_UNLOCK_SCORE.toLocaleString()}`;
+    return `
+      <div class="profile-card">
+        <h3>Profile</h3>
+        <p><strong>${escapeHtml(this.username)}</strong> · ${escapeHtml(this.getParticleLabel(this.selectedParticle))}</p>
+        <p>High score: ${Math.floor(this.highScore).toLocaleString()} by ${escapeHtml(this.profileStats.highScoreName)}</p>
+        <p>Highest level: ${this.profileStats.highestLevel} · Higgs: ${higgsUnlocked}</p>
+        <p>Sync Orbs: ${this.profileStats.totalSyncOrbs.toLocaleString()} · Near-misses: ${this.profileStats.totalNearMisses.toLocaleString()}</p>
+        <p class="muted small">Username is stored locally on this device only.</p>
+      </div>
     `;
   }
 
@@ -334,7 +415,7 @@ export class UI {
     return `
       <div class="section-title compact-title">
         <h2>Music</h2>
-        <span>${this.audioState.trackName}</span>
+        <span>${escapeHtml(this.audioState.trackName)}</span>
       </div>
       <label class="select-box">
         <span>Built-in / admin playlist</span>
@@ -358,11 +439,16 @@ export class UI {
         <input type="range" min="0" max="100" value="${Math.round(this.settings.volume * 100)}" data-volume />
       </label>
       <label class="toggle"><input type="checkbox" data-muted ${this.settings.muted ? 'checked' : ''}/> Mute audio</label>
+      <div class="button-row compact">
+        <button class="secondary" type="button" data-fix-audio>Play / Fix Audio</button>
+        <button class="secondary" type="button" data-test-sound>Test Sound</button>
+      </div>
       <label class="upload-box">
         <span>Upload from this browser/device</span>
         <input type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/x-m4a,audio/mp4,audio/ogg,audio/*" data-upload />
       </label>
       <p class="muted small">Admin URL paths must be reachable by this browser. Local laptop files need this upload picker.</p>
+      <p class="muted small">${this.renderAudioDebug()}</p>
       ${this.audioState.error ? `<p class="warning">${escapeHtml(this.audioState.error)}</p>` : ''}
     `;
   }
@@ -375,9 +461,31 @@ export class UI {
       </div>
       <label class="toggle"><input type="checkbox" data-lane ${this.settings.laneMode ? 'checked' : ''}/> Use 5-lane fallback instead of 360 steering</label>
       <label class="toggle"><input type="checkbox" data-haptics ${this.settings.hapticsEnabled ? 'checked' : ''}/> Haptics on obstacle impact</label>
-      <button class="secondary wide" data-tilt>${this.settings.tiltEnabled ? 'Disable tilt steering' : 'Enable tilt steering'}</button>
+      <div class="button-row compact">
+        <button class="secondary" type="button" data-fullscreen>Mobile Fullscreen</button>
+        <button class="secondary" type="button" data-tilt>${this.settings.tiltEnabled ? 'Disable Tilt' : 'Enable Tilt Steering'}</button>
+        <button class="secondary" type="button" data-recalibrate-tilt>Recalibrate Tilt</button>
+      </div>
+      <form class="username-edit" data-username-form>
+        <label>Edit Username<input name="username" maxlength="16" value="${escapeHtml(this.username)}" /></label>
+        ${this.usernameError ? `<p class="warning">${escapeHtml(this.usernameError)}</p>` : ''}
+        <button class="secondary wide" type="submit">Save Username</button>
+      </form>
       <p class="guard-note">Tilt steering asks for iOS motion permission when supported. Touch and keyboard controls always remain available.</p>
+      <p class="muted small">${this.renderTiltDebug()}</p>
     `;
+  }
+
+  private renderAudioDebug(): string {
+    const debug = this.audioDebug;
+    if (!debug) return 'Audio: not started yet.';
+    return `Audio: ${escapeHtml(debug.contextState)} · media ${debug.hasMediaElement ? 'yes' : 'no'} · buffer ${debug.hasBuffer ? 'yes' : 'no'} · muted ${debug.muted ? 'yes' : 'no'} · volume ${Math.round(debug.volume * 100)}%`;
+  }
+
+  private renderTiltDebug(): string {
+    const debug = this.tiltDebug;
+    if (!debug) return 'Tilt: not active yet.';
+    return `Tilt: ${debug.active ? 'active' : 'inactive'} · permission ${debug.permission} · gamma ${debug.gamma.toFixed(1)} · neutral ${debug.calibratedGamma.toFixed(1)} · steering ${debug.steering.toFixed(2)}`;
   }
 
   private setText(selector: string, value: string): void {

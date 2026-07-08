@@ -3,6 +3,16 @@ export interface InputOptions {
   tiltEnabled: boolean;
 }
 
+export interface TiltDebugState {
+  permission: PermissionState | 'unsupported' | 'unknown';
+  alpha: number;
+  beta: number;
+  gamma: number;
+  calibratedGamma: number;
+  steering: number;
+  active: boolean;
+}
+
 const LANES = [-2.3, -1.15, 0, 1.15, 2.3];
 const TAU = Math.PI * 2;
 
@@ -18,6 +28,11 @@ export class InputManager {
   private keyboardDirection = 0;
   private tilt = 0;
   private requestedTilt = false;
+  private tiltPermission: PermissionState | 'unsupported' | 'unknown' = 'unknown';
+  private alpha = 0;
+  private beta = 0;
+  private gamma = 0;
+  private calibratedGamma = 0;
 
   constructor(container: HTMLElement, options: InputOptions) {
     this.container = container;
@@ -57,15 +72,46 @@ export class InputManager {
   }
 
   async requestTiltPermission(): Promise<boolean> {
-    const orientation = DeviceOrientationEvent as unknown as {
+    const orientation = window.DeviceOrientationEvent as unknown as {
+      requestPermission?: () => Promise<PermissionState>;
+    };
+    const motion = window.DeviceMotionEvent as unknown as {
       requestPermission?: () => Promise<PermissionState>;
     };
     this.requestedTilt = true;
+    const permissions: PermissionState[] = [];
     if (typeof orientation.requestPermission === 'function') {
-      const permission = await orientation.requestPermission();
-      return permission === 'granted';
+      permissions.push(await orientation.requestPermission());
     }
+    if (typeof motion.requestPermission === 'function') {
+      permissions.push(await motion.requestPermission());
+    }
+    if (permissions.length > 0) {
+      const granted = permissions.every((permission) => permission === 'granted');
+      this.tiltPermission = granted ? 'granted' : 'denied';
+      if (granted) this.recalibrateTilt();
+      return granted;
+    }
+    this.tiltPermission = 'granted';
+    this.recalibrateTilt();
     return true;
+  }
+
+  recalibrateTilt(): void {
+    this.calibratedGamma = this.gamma;
+    this.tilt = 0;
+  }
+
+  getTiltDebug(): TiltDebugState {
+    return {
+      permission: this.tiltPermission,
+      alpha: this.alpha,
+      beta: this.beta,
+      gamma: this.gamma,
+      calibratedGamma: this.calibratedGamma,
+      steering: this.tilt,
+      active: this.options.tiltEnabled && this.requestedTilt && this.tiltPermission === 'granted'
+    };
   }
 
   private attach(): void {
@@ -113,7 +159,10 @@ export class InputManager {
 
     window.addEventListener('deviceorientation', (event) => {
       if (!this.options.tiltEnabled || !this.requestedTilt) return;
-      this.tilt = Math.max(-1, Math.min(1, (event.gamma ?? 0) / 28));
+      this.alpha = event.alpha ?? 0;
+      this.beta = event.beta ?? 0;
+      this.gamma = event.gamma ?? 0;
+      this.tilt = Math.max(-1, Math.min(1, (this.gamma - this.calibratedGamma) / 24));
     });
   }
 
@@ -128,11 +177,12 @@ export class InputManager {
   }
 
   private syncTiltPermissionFlag(): void {
-    const orientation = DeviceOrientationEvent as unknown as {
+    const orientation = window.DeviceOrientationEvent as unknown as {
       requestPermission?: () => Promise<PermissionState>;
     };
     if (this.options.tiltEnabled && typeof orientation.requestPermission !== 'function') {
       this.requestedTilt = true;
+      this.tiltPermission = 'granted';
     }
   }
 }

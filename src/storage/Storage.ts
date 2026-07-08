@@ -5,6 +5,8 @@ const HIGH_SCORE_KEY = 'qt.highScore';
 const UNLOCKS_KEY = 'qt.unlocks';
 const ADMIN_PLAYLIST_KEY = 'qt.adminPlaylist';
 const SETTINGS_KEY = 'qt.settings';
+const USERNAME_KEY = 'qt.username';
+const PROFILE_STATS_KEY = 'qt.profileStats';
 
 export interface GameSettings {
   muted: boolean;
@@ -14,6 +16,13 @@ export interface GameSettings {
   hapticsEnabled: boolean;
 }
 
+export interface ProfileStats {
+  highestLevel: number;
+  totalSyncOrbs: number;
+  totalNearMisses: number;
+  highScoreName: string;
+}
+
 const defaultSettings: GameSettings = {
   muted: false,
   volume: 0.72,
@@ -21,6 +30,22 @@ const defaultSettings: GameSettings = {
   tiltEnabled: false,
   hapticsEnabled: true
 };
+
+const defaultProfileStats: ProfileStats = {
+  highestLevel: 1,
+  totalSyncOrbs: 0,
+  totalNearMisses: 0,
+  highScoreName: 'Quantum Racer'
+};
+
+export function normalizeUsername(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').slice(0, 16);
+}
+
+export function isValidUsername(value: string): boolean {
+  const normalized = normalizeUsername(value);
+  return normalized.length >= 3 && normalized.length <= 16 && /^[A-Za-z0-9 _-]+$/.test(normalized);
+}
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -36,6 +61,26 @@ function writeJson<T>(key: string, value: T): void {
 }
 
 export const Storage = {
+  getUsername(): string {
+    return localStorage.getItem(USERNAME_KEY) || 'Quantum Racer';
+  },
+
+  hasUsername(): boolean {
+    return localStorage.getItem(USERNAME_KEY) !== null;
+  },
+
+  setUsername(username: string): void {
+    const normalized = normalizeUsername(username);
+    if (!isValidUsername(normalized)) {
+      throw new Error('Use 3-16 letters, numbers, spaces, underscores, or hyphens.');
+    }
+    localStorage.setItem(USERNAME_KEY, normalized);
+  },
+
+  skipUsername(): void {
+    localStorage.setItem(USERNAME_KEY, 'Quantum Racer');
+  },
+
   getHighScore(): number {
     return Number(localStorage.getItem(HIGH_SCORE_KEY) ?? 0);
   },
@@ -44,6 +89,9 @@ export const Storage = {
     const current = this.getHighScore();
     if (score > current) {
       localStorage.setItem(HIGH_SCORE_KEY, String(Math.floor(score)));
+      const stats = this.getProfileStats();
+      stats.highScoreName = this.getUsername();
+      this.setProfileStats(stats);
     }
   },
 
@@ -70,6 +118,27 @@ export const Storage = {
 
   setSettings(settings: GameSettings): void {
     writeJson(SETTINGS_KEY, settings);
+  },
+
+  getProfileStats(): ProfileStats {
+    return { ...defaultProfileStats, ...readJson<ProfileStats>(PROFILE_STATS_KEY, defaultProfileStats) };
+  },
+
+  setProfileStats(stats: ProfileStats): void {
+    writeJson(PROFILE_STATS_KEY, {
+      highestLevel: Math.max(1, Math.floor(stats.highestLevel)),
+      totalSyncOrbs: Math.max(0, Math.floor(stats.totalSyncOrbs)),
+      totalNearMisses: Math.max(0, Math.floor(stats.totalNearMisses)),
+      highScoreName: normalizeUsername(stats.highScoreName || 'Quantum Racer') || 'Quantum Racer'
+    });
+  },
+
+  recordRunProgress(level: number, syncOrbs: number, nearMisses: number): void {
+    const stats = this.getProfileStats();
+    stats.highestLevel = Math.max(stats.highestLevel, level);
+    stats.totalSyncOrbs += Math.max(0, syncOrbs);
+    stats.totalNearMisses += Math.max(0, nearMisses);
+    this.setProfileStats(stats);
   },
 
   getAdminPlaylist(): PlaylistEntry[] {

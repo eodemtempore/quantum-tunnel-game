@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quantum-tunnel-v16';
+const CACHE_NAME = 'quantum-tunnel-v17';
 const BASE_PATH = new URL(self.registration.scope).pathname;
 const CORE_ASSETS = [BASE_PATH, `${BASE_PATH}manifest.json`, `${BASE_PATH}icon.svg`];
 

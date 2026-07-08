@@ -1,0 +1,138 @@
+export interface InputOptions {
+  laneMode: boolean;
+  tiltEnabled: boolean;
+}
+
+const LANES = [-2.3, -1.15, 0, 1.15, 2.3];
+const TAU = Math.PI * 2;
+
+export class InputManager {
+  private container: HTMLElement;
+  private options: InputOptions;
+  private pointerActive = false;
+  private startX = 0;
+  private lastPointerX = 0;
+  private currentX = 0;
+  private currentAngle = Math.PI * -0.5;
+  private laneIndex = 2;
+  private keyboardDirection = 0;
+  private tilt = 0;
+  private requestedTilt = false;
+
+  constructor(container: HTMLElement, options: InputOptions) {
+    this.container = container;
+    this.options = options;
+    this.syncTiltPermissionFlag();
+    this.attach();
+  }
+
+  setOptions(options: InputOptions): void {
+    this.options = options;
+    this.syncTiltPermissionFlag();
+  }
+
+  getTargetX(currentX: number, dt: number): number {
+    if (this.options.laneMode) {
+      if (this.keyboardDirection !== 0) {
+        this.laneIndex = Math.max(0, Math.min(LANES.length - 1, this.laneIndex + this.keyboardDirection));
+        this.keyboardDirection = 0;
+      }
+      return LANES[this.laneIndex];
+    }
+
+    const pointerTarget = this.pointerActive ? this.currentX : currentX + this.keyboardDirection * dt * 4.2;
+    const tiltTarget = this.options.tiltEnabled ? this.tilt * 2.4 : 0;
+    return Math.max(-2.65, Math.min(2.65, pointerTarget + tiltTarget));
+  }
+
+  getTargetAngle(currentAngle: number, dt: number): number {
+    if (this.pointerActive) {
+      return this.currentAngle;
+    }
+
+    const keyboardTarget = currentAngle + this.keyboardDirection * dt * 3.4;
+    const tiltTarget = this.options.tiltEnabled ? this.tilt * dt * 2.2 : 0;
+    this.currentAngle = this.normalizeAngle(keyboardTarget + tiltTarget);
+    return this.currentAngle;
+  }
+
+  async requestTiltPermission(): Promise<boolean> {
+    const orientation = DeviceOrientationEvent as unknown as {
+      requestPermission?: () => Promise<PermissionState>;
+    };
+    this.requestedTilt = true;
+    if (typeof orientation.requestPermission === 'function') {
+      const permission = await orientation.requestPermission();
+      return permission === 'granted';
+    }
+    return true;
+  }
+
+  private attach(): void {
+    this.container.addEventListener('pointerdown', (event) => {
+      this.pointerActive = true;
+      this.startX = event.clientX;
+      this.lastPointerX = event.clientX;
+      this.currentX = this.mapClientX(event.clientX);
+      this.container.setPointerCapture(event.pointerId);
+    });
+
+    this.container.addEventListener('pointermove', (event) => {
+      if (!this.pointerActive) return;
+      this.currentX = this.mapClientX(event.clientX);
+      const deltaX = event.clientX - this.lastPointerX;
+      this.currentAngle = this.normalizeAngle(this.currentAngle + deltaX * 0.014);
+      this.lastPointerX = event.clientX;
+    });
+
+    this.container.addEventListener('pointerup', (event) => {
+      if (this.options.laneMode) {
+        const delta = event.clientX - this.startX;
+        if (Math.abs(delta) > 24) {
+          this.laneIndex = Math.max(0, Math.min(LANES.length - 1, this.laneIndex + (delta > 0 ? 1 : -1)));
+        }
+      }
+      this.pointerActive = false;
+      this.container.releasePointerCapture(event.pointerId);
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') {
+        this.keyboardDirection = this.options.laneMode ? -1 : -1;
+      }
+      if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') {
+        this.keyboardDirection = this.options.laneMode ? 1 : 1;
+      }
+    });
+
+    window.addEventListener('keyup', (event) => {
+      if (!this.options.laneMode && ['ArrowLeft', 'ArrowRight', 'a', 'A', 'd', 'D'].includes(event.key)) {
+        this.keyboardDirection = 0;
+      }
+    });
+
+    window.addEventListener('deviceorientation', (event) => {
+      if (!this.options.tiltEnabled || !this.requestedTilt) return;
+      this.tilt = Math.max(-1, Math.min(1, (event.gamma ?? 0) / 28));
+    });
+  }
+
+  private mapClientX(clientX: number): number {
+    const rect = this.container.getBoundingClientRect();
+    const normalized = (clientX - rect.left) / rect.width;
+    return (normalized - 0.5) * 5.3;
+  }
+
+  private normalizeAngle(angle: number): number {
+    return ((angle % TAU) + TAU) % TAU;
+  }
+
+  private syncTiltPermissionFlag(): void {
+    const orientation = DeviceOrientationEvent as unknown as {
+      requestPermission?: () => Promise<PermissionState>;
+    };
+    if (this.options.tiltEnabled && typeof orientation.requestPermission !== 'function') {
+      this.requestedTilt = true;
+    }
+  }
+}

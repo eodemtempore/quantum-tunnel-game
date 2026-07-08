@@ -28,7 +28,7 @@ export const DEFAULT_PLAYLIST: PlaylistEntry[] = [
     id: 'default-track',
     title: 'Default Tunnel Track',
     artist: 'Local default',
-    url: '/tracks/default.mp3',
+    url: `${import.meta.env.BASE_URL}tracks/default.mp3`,
     mood: 'quantum',
     source: 'built-in'
   }

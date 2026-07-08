@@ -112,7 +112,6 @@ export class Game {
       onRecalibrateTilt: () => this.recalibrateTilt(),
       onSetUsername: (username) => this.setUsername(username),
       onSkipUsername: () => this.skipUsername(),
-      onRequestFullscreen: () => void this.enterFullscreen(),
       onFixAudio: () => void this.fixAudio(),
       onTestSound: () => void this.testSound(),
       onOpenAdmin: () => this.openAdmin(),
@@ -145,6 +144,7 @@ export class Game {
   }
 
   private renderMenu(): void {
+    document.body.classList.remove('play-fullscreen');
     this.highScore = Storage.getHighScore();
     this.username = Storage.getUsername();
     this.ui.setProfile(this.username, !Storage.hasUsername(), Storage.getProfileStats(), this.usernameError);
@@ -153,6 +153,7 @@ export class Game {
   }
 
   private async startRun(): Promise<void> {
+    await this.enterPlayLayout();
     await this.audio.ensureStarted();
     if (this.selectedTrack) {
       const state = await this.audio.usePlaylistTrack(this.selectedTrack);
@@ -269,15 +270,14 @@ export class Game {
     this.renderMenu();
   }
 
-  private async enterFullscreen(): Promise<void> {
+  private async enterPlayLayout(): Promise<void> {
+    document.body.classList.add('play-fullscreen');
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     try {
-      if (!this.shell.requestFullscreen) throw new Error('Fullscreen API unavailable.');
+      if (isIOS || !this.shell.requestFullscreen) throw new Error('Fixed mobile play layout.');
       await this.shell.requestFullscreen();
-      document.body.classList.add('pseudo-fullscreen');
-      this.ui.notify('Fullscreen enabled.');
     } catch {
-      document.body.classList.add('pseudo-fullscreen');
-      this.ui.notify('Using mobile fullscreen layout. Safari may limit real fullscreen.');
+      // iPhone Safari has limited element fullscreen. The fixed play layout is intentional.
     }
     this.resize();
   }

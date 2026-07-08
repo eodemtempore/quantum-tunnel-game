@@ -52,7 +52,6 @@ interface UICallbacks {
   onRecalibrateTilt: () => void;
   onSetUsername: (username: string) => void;
   onSkipUsername: () => void;
-  onRequestFullscreen: () => void;
   onFixAudio: () => void;
   onTestSound: () => void;
   onOpenAdmin: () => void;
@@ -323,7 +322,6 @@ export class UI {
     });
     this.menu.querySelector('[data-fix-audio]')?.addEventListener('click', this.callbacks.onFixAudio);
     this.menu.querySelector('[data-test-sound]')?.addEventListener('click', this.callbacks.onTestSound);
-    this.menu.querySelector('[data-fullscreen]')?.addEventListener('click', this.callbacks.onRequestFullscreen);
     this.menu.querySelector<HTMLInputElement>('[data-lane]')?.addEventListener('change', (event) => {
       const input = event.currentTarget as HTMLInputElement;
       this.callbacks.onSetLaneMode(input.checked);
@@ -462,7 +460,6 @@ export class UI {
       <label class="toggle"><input type="checkbox" data-lane ${this.settings.laneMode ? 'checked' : ''}/> Use 5-lane fallback instead of 360 steering</label>
       <label class="toggle"><input type="checkbox" data-haptics ${this.settings.hapticsEnabled ? 'checked' : ''}/> Haptics on obstacle impact</label>
       <div class="button-row compact">
-        <button class="secondary" type="button" data-fullscreen>Mobile Fullscreen</button>
         <button class="secondary" type="button" data-tilt>${this.settings.tiltEnabled ? 'Disable Tilt' : 'Enable Tilt Steering'}</button>
         <button class="secondary" type="button" data-recalibrate-tilt>Recalibrate Tilt</button>
       </div>
@@ -485,7 +482,7 @@ export class UI {
   private renderTiltDebug(): string {
     const debug = this.tiltDebug;
     if (!debug) return 'Tilt: not active yet.';
-    return `Tilt: ${debug.active ? 'active' : 'inactive'} · permission ${debug.permission} · gamma ${debug.gamma.toFixed(1)} · neutral ${debug.calibratedGamma.toFixed(1)} · steering ${debug.steering.toFixed(2)}`;
+    return `Tilt: ${debug.active ? 'active' : 'inactive'} · permission ${debug.permission} · beta ${debug.beta.toFixed(1)}/${debug.calibratedBeta.toFixed(1)} · gamma ${debug.gamma.toFixed(1)}/${debug.calibratedGamma.toFixed(1)} · steering ${debug.steering.toFixed(2)}`;
   }
 
   private setText(selector: string, value: string): void {

@@ -8,6 +8,7 @@ export interface TiltDebugState {
   alpha: number;
   beta: number;
   gamma: number;
+  calibratedBeta: number;
   calibratedGamma: number;
   steering: number;
   active: boolean;
@@ -32,6 +33,7 @@ export class InputManager {
   private alpha = 0;
   private beta = 0;
   private gamma = 0;
+  private calibratedBeta = 0;
   private calibratedGamma = 0;
 
   constructor(container: HTMLElement, options: InputOptions) {
@@ -66,7 +68,7 @@ export class InputManager {
     }
 
     const keyboardTarget = currentAngle + this.keyboardDirection * dt * 3.4;
-    const tiltTarget = this.options.tiltEnabled ? this.tilt * dt * 2.2 : 0;
+    const tiltTarget = this.options.tiltEnabled ? this.tilt * dt * 5.2 : 0;
     this.currentAngle = this.normalizeAngle(keyboardTarget + tiltTarget);
     return this.currentAngle;
   }
@@ -98,6 +100,7 @@ export class InputManager {
   }
 
   recalibrateTilt(): void {
+    this.calibratedBeta = this.beta;
     this.calibratedGamma = this.gamma;
     this.tilt = 0;
   }
@@ -108,6 +111,7 @@ export class InputManager {
       alpha: this.alpha,
       beta: this.beta,
       gamma: this.gamma,
+      calibratedBeta: this.calibratedBeta,
       calibratedGamma: this.calibratedGamma,
       steering: this.tilt,
       active: this.options.tiltEnabled && this.requestedTilt && this.tiltPermission === 'granted'
@@ -162,7 +166,10 @@ export class InputManager {
       this.alpha = event.alpha ?? 0;
       this.beta = event.beta ?? 0;
       this.gamma = event.gamma ?? 0;
-      this.tilt = Math.max(-1, Math.min(1, (this.gamma - this.calibratedGamma) / 24));
+      const gammaTilt = (this.gamma - this.calibratedGamma) / 18;
+      const betaTilt = (this.beta - this.calibratedBeta) / 26;
+      const dominantTilt = Math.abs(gammaTilt) >= Math.abs(betaTilt) ? gammaTilt : betaTilt;
+      this.tilt = Math.max(-1, Math.min(1, dominantTilt));
     });
   }
 

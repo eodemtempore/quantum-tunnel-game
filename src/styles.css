@@ -27,7 +27,7 @@ body,
   padding: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  touch-action: none;
+  touch-action: manipulation;
 }
 
 body {
@@ -55,15 +55,19 @@ button {
   min-width: 100vw;
   min-height: 100dvh;
   overflow: hidden;
+  touch-action: none;
 }
 
-body.pseudo-fullscreen,
-body.pseudo-fullscreen #app,
-body.pseudo-fullscreen .game-shell,
-body.pseudo-fullscreen .canvas-host {
+body.play-fullscreen {
+  overflow: hidden;
+}
+
+body.play-fullscreen,
+body.play-fullscreen #app,
+body.play-fullscreen .game-shell,
+body.play-fullscreen .canvas-host {
   position: fixed;
   inset: 0;
-  z-index: 999;
   width: 100vw;
   height: 100dvh;
   overflow: hidden;
@@ -90,6 +94,7 @@ body.pseudo-fullscreen .canvas-host {
     linear-gradient(180deg, rgba(0, 0, 0, 0.46), rgba(0, 0, 0, 0.84)),
     repeating-linear-gradient(90deg, rgba(0, 255, 138, 0.035) 0 1px, transparent 1px 32px);
   touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .hidden {
@@ -97,14 +102,14 @@ body.pseudo-fullscreen .canvas-host {
 }
 
 .menu-screen {
-  height: 100svh;
-  height: 100dvh;
-  height: var(--app-height);
+  min-height: 100svh;
+  min-height: 100dvh;
+  min-height: var(--app-height);
   display: grid;
-  grid-template-rows: minmax(190px, 0.72fr) minmax(0, 1fr);
+  grid-template-rows: minmax(180px, auto) minmax(0, auto);
   gap: 10px;
-  overflow: hidden;
-  touch-action: none;
+  overflow-y: auto;
+  touch-action: pan-y;
 }
 
 .hero-panel,
@@ -323,8 +328,8 @@ h2 {
 .cockpit-panel {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
+  grid-template-rows: auto auto;
+  overflow: visible;
 }
 
 .tab-row {
@@ -343,7 +348,7 @@ h2 {
 
 .tab-panel {
   min-height: 0;
-  overflow-y: auto;
+  overflow: visible;
   padding-right: 2px;
   touch-action: pan-y;
 }
@@ -747,7 +752,8 @@ h2 {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: max(84px, env(safe-area-inset-bottom));
+  top: max(48px, env(safe-area-inset-top));
+  bottom: auto;
   z-index: 30;
   width: min(calc(100% - 28px), 520px);
   transform: translateX(-50%);
@@ -815,16 +821,24 @@ h2 {
   }
 
   .menu-screen {
-    grid-template-columns: minmax(220px, 0.62fr) minmax(360px, 1.38fr);
-    grid-template-rows: 1fr;
+    display: block;
     gap: 8px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .hero-panel {
-    min-height: calc(100svh - 16px);
-    min-height: calc(100dvh - 16px);
-    min-height: calc(var(--app-height) - 16px);
+    min-height: 138px;
+    margin-bottom: 8px;
     padding: 10px;
+  }
+
+  .menu-section {
+    min-height: auto;
+  }
+
+  .cockpit-panel {
+    display: block;
   }
 
   .hero-panel::before {
@@ -918,12 +932,71 @@ h2 {
   }
 
   .hud {
-    padding: 8px;
+    padding: max(6px, env(safe-area-inset-top)) 6px max(6px, env(safe-area-inset-bottom));
   }
 
   .hud-top,
   .hud-bottom {
-    padding: 6px;
+    width: auto;
+    max-width: calc(100vw - 64px);
+    padding: 4px 6px;
+    gap: 5px;
+    border-color: rgba(0, 255, 138, 0.12);
+    background: rgba(0, 8, 5, 0.26);
+    backdrop-filter: none;
+  }
+
+  .hud-top {
+    align-self: flex-start;
+    grid-template-columns: auto auto auto;
+  }
+
+  .hud-bottom {
+    align-self: flex-start;
+    grid-template-columns: auto auto auto;
+  }
+
+  .hud-bottom > div:nth-child(1),
+  .hud-bottom > div:nth-child(2),
+  .hud-bottom > div:nth-child(3),
+  .hud-bottom > div:nth-child(6) {
+    display: none;
+  }
+
+  .hud span {
+    font-size: 8px;
+  }
+
+  .hud strong {
+    font-size: 10px;
+    margin-top: 1px;
+  }
+
+  .hud small {
+    display: none;
+  }
+
+  .pause-button {
+    grid-column: auto;
+    min-height: 28px;
+    min-width: 58px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .close-run {
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
+    background: rgba(26, 0, 8, 0.48);
+  }
+
+  .toast {
+    top: max(38px, env(safe-area-inset-top));
+    width: min(calc(100% - 92px), 360px);
+    padding: 7px 10px;
+    font-size: 12px;
+    background: rgba(20, 14, 0, 0.58);
   }
 }
 

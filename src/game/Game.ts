@@ -90,6 +90,7 @@ export class Game {
     this.scene.add(this.tunnel.group, this.obstacles.group, this.collectibles.group, this.player.group);
 
     this.settings = Storage.getSettings();
+    this.syncVisualModeClass();
     this.audio.setMuted(this.settings.muted);
     this.audio.setVolume(this.settings.volume);
     this.input = new InputManager(this.canvasHost, {
@@ -155,6 +156,7 @@ export class Game {
 
   private renderMenu(): void {
     document.body.classList.remove('play-fullscreen');
+    this.syncVisualModeClass();
     this.highScore = Storage.getHighScore();
     this.username = Storage.getUsername();
     this.ui.setProfile(this.username, !Storage.hasUsername(), Storage.getProfileStats(), this.usernameError);
@@ -164,13 +166,20 @@ export class Game {
 
   private async startRun(): Promise<void> {
     await this.enterPlayLayoutIfMobile();
-    await this.audio.ensureStarted();
-    if (this.settings.experimentalSynthEnabled) await this.synth.ensureStarted(this.settings);
-    if (this.selectedTrack) {
+    if (this.settings.experimentalSynthEnabled) {
+      this.audio.stopTrack(true);
+      await this.synth.ensureStarted(this.settings);
+      this.currentTrackName = 'Experimental Synth Mode';
+      this.ui.setAudioState({ trackName: this.currentTrackName, usingUpload: false, usingProcedural: false });
+    } else if (this.selectedTrack) {
+      this.synth.stopPlayback();
+      await this.audio.ensureStarted();
       const state = await this.audio.usePlaylistTrack(this.selectedTrack);
       this.currentTrackName = state.trackName;
       this.ui.setAudioState(state);
     } else {
+      this.synth.stopPlayback();
+      await this.audio.ensureStarted();
       await this.audio.playTrack();
     }
     this.score = 0;
@@ -204,6 +213,14 @@ export class Game {
     if (!track) return;
     this.selectedTrack = track;
     this.ui.setSelectedTrack(id);
+    if (this.settings.experimentalSynthEnabled) {
+      this.audio.stopTrack(true);
+      this.currentTrackName = track.title;
+      this.ui.setAudioState({ trackName: track.title, usingUpload: false, usingProcedural: false });
+      this.ui.notify('Synth Mode is armed. Disable it to play soundtrack tracks.');
+      this.renderMenu();
+      return;
+    }
     const state = await this.audio.usePlaylistTrack(track);
     this.currentTrackName = state.trackName;
     this.ui.setAudioState(state);
@@ -211,6 +228,16 @@ export class Game {
   }
 
   private async uploadTrack(file: File): Promise<void> {
+    if (this.settings.experimentalSynthEnabled) {
+      this.audio.stopTrack(true);
+      this.selectedTrack = undefined;
+      this.currentTrackName = file.name;
+      this.ui.setSelectedTrack('');
+      this.ui.setAudioState({ trackName: file.name, usingUpload: true, usingProcedural: false });
+      this.ui.notify('Synth Mode is armed. Disable it to play uploaded tracks.');
+      this.renderMenu();
+      return;
+    }
     const state = await this.audio.useUpload(file);
     this.selectedTrack = undefined;
     this.currentTrackName = state.trackName;
@@ -220,6 +247,12 @@ export class Game {
   }
 
   private useProcedural(): void {
+    if (this.settings.experimentalSynthEnabled) {
+      this.audio.stopTrack(true);
+      this.ui.notify('Synth Mode is armed. Disable it to use normal audio.');
+      this.renderMenu();
+      return;
+    }
     this.selectedTrack = undefined;
     this.currentTrackName = 'Procedural Soundtrack';
     this.ui.setSelectedTrack('');
@@ -230,6 +263,7 @@ export class Game {
   private updateSettings(partial: Partial<ReturnType<typeof Storage.getSettings>>): void {
     this.settings = { ...Storage.getSettings(), ...partial };
     Storage.setSettings(this.settings);
+    this.syncVisualModeClass();
     this.audio.setMuted(this.settings.muted);
     this.audio.setVolume(this.settings.volume);
     this.synth.applySettings(this.settings);
@@ -240,12 +274,13 @@ export class Game {
 
   private async setExperimentalSynth(enabled: boolean): Promise<void> {
     this.updateSettings({ experimentalSynthEnabled: enabled });
-    try {
-      await this.synth.setEnabled(enabled, this.settings);
-      this.ui.notify(enabled ? 'Experimental Synth Mode enabled.' : 'Experimental Synth Mode disabled.');
-    } catch {
-      this.updateSettings({ experimentalSynthEnabled: false });
-      this.ui.notify('Synth audio was blocked. Tap the toggle again.');
+    await this.synth.setEnabled(enabled, this.settings);
+    if (enabled) {
+      this.audio.stopTrack(true);
+      this.ui.notify('Synth Mode armed. It starts when gameplay starts.');
+    } else {
+      this.synth.stop();
+      this.ui.notify('Experimental Synth Mode disabled.');
     }
   }
 
@@ -277,6 +312,12 @@ export class Game {
   }
 
   private async fixAudio(): Promise<void> {
+    if (this.settings.experimentalSynthEnabled) {
+      this.audio.stopTrack(true);
+      this.ui.notify('Synth Mode starts when gameplay starts. Disable it to fix soundtrack audio.');
+      this.renderMenu();
+      return;
+    }
     try {
       const state = await this.audio.fixAudio();
       this.audio.setMuted(false);
@@ -349,6 +390,11 @@ export class Game {
   }
 
   private async trackControl(control: 'play' | 'pause' | 'restart'): Promise<void> {
+    if (this.settings.experimentalSynthEnabled) {
+      this.audio.stopTrack(true);
+      this.ui.notify('Synth Mode replaces soundtrack playback while active.');
+      return;
+    }
     if (control === 'play') await this.audio.playTrack();
     if (control === 'pause') this.audio.pauseTrack();
     if (control === 'restart') this.audio.restartTrack();
@@ -358,10 +404,12 @@ export class Game {
     if (this.mode === 'playing' || forcePause) {
       this.mode = 'paused';
       this.audio.pauseTrack();
+      this.synth.stopPlayback();
       this.pushHudState();
     } else if (this.mode === 'paused') {
       this.mode = 'playing';
-      void this.audio.playTrack();
+      if (this.settings.experimentalSynthEnabled) void this.synth.ensureStarted(this.settings);
+      else void this.audio.playTrack();
       this.lastFrame = performance.now();
       this.pushHudState();
     }
@@ -375,6 +423,7 @@ export class Game {
     }
     this.mode = 'menu';
     this.audio.stopTrack();
+    this.synth.stopPlayback();
     this.obstacles.clear();
     this.collectibles.clear();
     this.renderMenu();
@@ -542,9 +591,14 @@ export class Game {
     return Math.min(1, (0.32 + this.level.level * 0.018 + this.score / 2_500_000) * fpsScale);
   }
 
+  private syncVisualModeClass(): void {
+    document.body.classList.toggle('ultra-visuals', Boolean(this.settings?.ultraVisualsEnabled));
+  }
+
   private endRun(): void {
     this.mode = 'over';
     this.audio.stopTrack(true);
+    this.synth.stopPlayback();
     Storage.recordRunProgress(this.level.level, this.runSyncOrbs, this.runNearMisses);
     Storage.setHighScore(this.score);
     if (this.score >= HIGGS_UNLOCK_SCORE) {

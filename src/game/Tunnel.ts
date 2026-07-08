@@ -74,15 +74,23 @@ export class Tunnel {
 
   update(dt: number, speed: number, level: LevelConfig, audioEnergy: number, glitch: number, ultraIntensity = 0): void {
     const ultraPulse = ultraIntensity * (0.5 + Math.sin(performance.now() * 0.004) * 0.5);
-    this.group.rotation.z += dt * (0.05 * level.speedMultiplier + ultraIntensity * 0.08);
+    const ultraTime = performance.now() * 0.001;
+    this.group.rotation.z += dt * (0.05 * level.speedMultiplier + ultraIntensity * 0.22);
 
-    for (const ring of this.rings) {
+    for (const [index, ring] of this.rings.entries()) {
       ring.position.z += speed * dt;
       if (ring.position.z > 6) ring.position.z -= this.depth;
-      this.setRingOpacity(ring, 0.25 + audioEnergy * (0.38 + ultraIntensity * 0.42) + glitch * 0.25 + ultraPulse * 0.16);
+      if (ultraIntensity > 0) {
+        const hue = (ultraTime * 80 + index * 11 + level.level * 23 + audioEnergy * 80) % 360;
+        this.setRingColor(ring, `hsl(${hue}, 100%, ${58 + ultraPulse * 22}%)`);
+      }
+      this.setRingOpacity(ring, 0.25 + audioEnergy * (0.38 + ultraIntensity * 0.92) + glitch * 0.25 + ultraPulse * 0.34);
       ring.scale.setScalar(
-        1 + audioEnergy * (0.04 + ultraIntensity * 0.08) + Math.sin(performance.now() * 0.002 + ring.position.z) * (0.015 + ultraIntensity * 0.035)
+        1 +
+          audioEnergy * (0.04 + ultraIntensity * 0.18) +
+          Math.sin(ultraTime * (2.2 + ultraIntensity * 3) + ring.position.z + index * 0.7) * (0.015 + ultraIntensity * 0.16)
       );
+      ring.rotation.z += dt * ultraIntensity * Math.sin(ultraTime + index) * 0.6;
     }
 
     const positions = this.speedLines.geometry.attributes.position as THREE.BufferAttribute;
@@ -90,7 +98,7 @@ export class Tunnel {
       const z = positions.getZ(i) + speed * dt * 1.35;
       if (z > 6) {
         const angle = Math.random() * Math.PI * 2;
-        const radius = 3.1 + Math.random() * 0.9;
+        const radius = 3.1 + Math.random() * (0.9 + ultraIntensity * 1.2);
         const nextZ = -this.depth;
         positions.setXYZ(i, Math.cos(angle) * radius, Math.sin(angle) * radius, nextZ);
         positions.setXYZ(i + 1, Math.cos(angle) * radius, Math.sin(angle) * radius, nextZ - 2 - Math.random() * 4);
@@ -100,12 +108,18 @@ export class Tunnel {
       }
     }
     positions.needsUpdate = true;
-    (this.speedLines.material as THREE.LineBasicMaterial).opacity = 0.22 + audioEnergy * (0.34 + ultraIntensity * 0.34) + ultraPulse * 0.12;
+    const lineMaterial = this.speedLines.material as THREE.LineBasicMaterial;
+    if (ultraIntensity > 0) lineMaterial.color.set(`hsl(${(ultraTime * 110 + level.level * 31) % 360}, 100%, 62%)`);
+    lineMaterial.opacity = 0.22 + audioEnergy * (0.34 + ultraIntensity * 0.72) + ultraPulse * 0.2;
 
-    for (const sprite of this.codeSprites) {
-      sprite.position.z += speed * dt * (0.72 + audioEnergy * 0.45 + ultraIntensity * 0.25);
-      sprite.material.opacity = 0.34 + audioEnergy * 0.45 + ultraIntensity * 0.22;
-      sprite.rotation.z += dt * ultraIntensity * 0.9;
+    for (const [index, sprite] of this.codeSprites.entries()) {
+      sprite.position.z += speed * dt * (0.72 + audioEnergy * 0.45 + ultraIntensity * 0.7);
+      sprite.material.opacity = 0.34 + audioEnergy * 0.45 + ultraIntensity * 0.46;
+      if (ultraIntensity > 0) {
+        (sprite.material as THREE.SpriteMaterial).color.set(`hsl(${(ultraTime * 95 + index * 17) % 360}, 100%, 66%)`);
+        sprite.scale.setScalar(0.62 + Math.sin(ultraTime * 4 + index) * 0.18 + ultraIntensity * 0.36);
+      }
+      sprite.rotation.z += dt * ultraIntensity * 2.4;
       if (sprite.position.z > 5) this.placeSprite(sprite, -this.depth);
     }
   }

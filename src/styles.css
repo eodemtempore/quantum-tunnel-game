@@ -36,6 +36,34 @@ body {
     linear-gradient(180deg, #020503 0%, #000 100%);
 }
 
+body.ultra-visuals {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(255, 0, 204, 0.28), transparent 20rem),
+    radial-gradient(circle at 82% 30%, rgba(0, 217, 255, 0.28), transparent 22rem),
+    radial-gradient(circle at 50% 80%, rgba(255, 214, 0, 0.18), transparent 24rem),
+    #030006;
+}
+
+body.ultra-visuals::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    conic-gradient(from 0deg at 50% 50%, rgba(255, 0, 204, 0.12), rgba(0, 255, 138, 0.12), rgba(0, 217, 255, 0.12), rgba(255, 214, 0, 0.1), rgba(255, 0, 204, 0.12)),
+    repeating-radial-gradient(circle at 50% 50%, transparent 0 22px, rgba(255, 255, 255, 0.035) 23px 24px);
+  mix-blend-mode: screen;
+  animation: ultra-bg-spin 9s linear infinite;
+}
+
+@keyframes ultra-bg-spin {
+  to {
+    filter: hue-rotate(360deg);
+    transform: scale(1.08) rotate(1turn);
+  }
+}
+
 button,
 input,
 select {
@@ -156,6 +184,32 @@ body.play-fullscreen .canvas-host canvas {
     inset 0 0 18px rgba(0, 217, 255, 0.04);
   backdrop-filter: blur(14px);
   border-radius: 8px;
+}
+
+body.ultra-visuals .hero-panel,
+body.ultra-visuals .panel,
+body.ultra-visuals .menu-section,
+body.ultra-visuals .hud-top,
+body.ultra-visuals .hud-bottom {
+  border-color: rgba(255, 0, 204, 0.48);
+  background:
+    linear-gradient(135deg, rgba(255, 0, 204, 0.18), rgba(0, 217, 255, 0.12), rgba(0, 255, 138, 0.1)),
+    rgba(2, 0, 10, 0.68);
+  box-shadow:
+    0 0 28px rgba(255, 0, 204, 0.22),
+    0 0 38px rgba(0, 217, 255, 0.14),
+    inset 0 0 24px rgba(255, 214, 0, 0.08);
+  animation: ultra-panel-pulse 2.8s ease-in-out infinite alternate;
+}
+
+@keyframes ultra-panel-pulse {
+  from {
+    filter: hue-rotate(0deg) saturate(1.1);
+  }
+
+  to {
+    filter: hue-rotate(75deg) saturate(1.45);
+  }
 }
 
 .hero-panel {
@@ -338,6 +392,23 @@ h2 {
   border: 0;
   font-weight: 900;
   box-shadow: 0 0 22px rgba(0, 255, 138, 0.28);
+}
+
+body.ultra-visuals .primary,
+body.ultra-visuals .secondary,
+body.ultra-visuals .tab-button,
+body.ultra-visuals .particle-card,
+body.ultra-visuals .music-card {
+  border-color: rgba(255, 214, 0, 0.45);
+  background:
+    linear-gradient(135deg, rgba(255, 0, 204, 0.32), rgba(0, 217, 255, 0.22), rgba(0, 255, 138, 0.16)),
+    rgba(0, 0, 0, 0.62);
+  box-shadow: 0 0 18px rgba(255, 0, 204, 0.16);
+}
+
+body.ultra-visuals .primary {
+  color: #05000c;
+  background: linear-gradient(135deg, #ff00cc, #00d9ff, #f8ff00);
 }
 
 .secondary,
@@ -813,6 +884,13 @@ h2 {
   color: #fff7d5;
   background: rgba(20, 14, 0, 0.86);
   box-shadow: 0 0 20px rgba(255, 215, 107, 0.16);
+}
+
+body.ultra-visuals .toast {
+  border-color: rgba(0, 217, 255, 0.52);
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(255, 0, 204, 0.7), rgba(0, 14, 24, 0.74));
+  box-shadow: 0 0 24px rgba(255, 0, 204, 0.28);
 }
 
 @media (min-width: 740px) {

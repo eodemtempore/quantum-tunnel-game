@@ -62,7 +62,7 @@ interface UICallbacks {
   onTrackControl: (control: 'play' | 'pause' | 'restart') => void;
 }
 
-type MenuTab = 'particle' | 'music' | 'settings';
+type MenuTab = 'particle' | 'music' | 'settings' | 'experimental';
 
 export class UI {
   private menu: HTMLDivElement;
@@ -148,6 +148,7 @@ export class UI {
           ${this.renderTabButton('particle', 'Particle')}
           ${this.renderTabButton('music', 'Music')}
           ${this.renderTabButton('settings', 'iPhone')}
+          ${this.renderTabButton('experimental', 'Experimental')}
         </div>
         <div class="tab-panel">
           ${this.needsUsername ? this.renderUsernamePrompt() : ''}
@@ -372,6 +373,7 @@ export class UI {
   private renderActiveTab(): string {
     if (this.activeTab === 'music') return this.renderMusicTab();
     if (this.activeTab === 'settings') return this.renderSettingsTab();
+    if (this.activeTab === 'experimental') return this.renderExperimentalTab();
     return this.renderParticleTab();
   }
 
@@ -475,19 +477,6 @@ export class UI {
       </div>
       <label class="toggle"><input type="checkbox" data-lane ${this.settings.laneMode ? 'checked' : ''}/> Use 5-lane fallback instead of 360 steering</label>
       <label class="toggle"><input type="checkbox" data-haptics ${this.settings.hapticsEnabled ? 'checked' : ''}/> Haptics on obstacle impact</label>
-      <label class="toggle"><input type="checkbox" data-synth-enabled ${this.settings.experimentalSynthEnabled ? 'checked' : ''}/> Experimental Synth Mode</label>
-      <label class="toggle"><input type="checkbox" data-ultra-visuals ${this.settings.ultraVisualsEnabled ? 'checked' : ''}/> Ultra / Psychedelic Visual Mode</label>
-      <div class="synth-panel">
-        <strong>Experimental Synth Controls</strong>
-        <p class="muted small">Experimental Synth Mode generates audio locally. Route your device/laptop audio output to a mixer or audio interface for live performance.</p>
-        ${this.renderSynthSlider('Master', 'synthMasterVolume')}
-        ${this.renderSynthSlider('Drone', 'synthDroneVolume')}
-        ${this.renderSynthSlider('Acid Bass', 'synthAcidVolume')}
-        ${this.renderSynthSlider('FM Texture', 'synthTextureVolume')}
-        ${this.renderSynthSlider('Perc / Glitch', 'synthPercussionVolume')}
-        ${this.renderSynthSlider('Effects', 'synthEffectsAmount')}
-        <button class="secondary wide" type="button" data-reset-synth>Reset Synth Preset</button>
-      </div>
       <div class="button-row compact">
         <button class="secondary" type="button" data-tilt>${this.settings.tiltEnabled ? 'Disable Tilt' : 'Enable Tilt Steering'}</button>
         <button class="secondary" type="button" data-recalibrate-tilt>Recalibrate Tilt</button>
@@ -499,6 +488,35 @@ export class UI {
       </form>
       <p class="guard-note">Tilt steering asks for iOS motion permission when supported. Touch and keyboard controls always remain available.</p>
       <p class="muted small">${this.renderTiltDebug()}</p>
+    `;
+  }
+
+  private renderExperimentalTab(): string {
+    return `
+      <div class="section-title compact-title">
+        <h2>Experimental</h2>
+        <span>optional synth + ultra visuals</span>
+      </div>
+      <label class="toggle"><input type="checkbox" data-synth-enabled ${this.settings.experimentalSynthEnabled ? 'checked' : ''}/> Experimental Synth Mode</label>
+      <label class="toggle"><input type="checkbox" data-ultra-visuals ${this.settings.ultraVisualsEnabled ? 'checked' : ''}/> Ultra / Psychedelic Visual Mode</label>
+      <p class="muted small">Both experimental modes are isolated, optional, and can be switched off independently.</p>
+      ${
+        this.settings.experimentalSynthEnabled
+          ? `<div class="synth-panel">
+        <strong>Experimental Synth Controls</strong>
+        <p class="warning small">Synth Mode replaces soundtrack playback while active. It starts when gameplay starts.</p>
+        <p class="muted small">Experimental Synth Mode generates audio locally. Route your device/laptop audio output to a mixer or audio interface for live performance.</p>
+        ${this.renderSynthSlider('Master', 'synthMasterVolume')}
+        ${this.renderSynthSlider('Drone', 'synthDroneVolume')}
+        ${this.renderSynthSlider('Acid Bass', 'synthAcidVolume')}
+        ${this.renderSynthSlider('FM Texture', 'synthTextureVolume')}
+        ${this.renderSynthSlider('Perc / Glitch', 'synthPercussionVolume')}
+        ${this.renderSynthSlider('Effects', 'synthEffectsAmount')}
+        <button class="secondary wide" type="button" data-reset-synth>Reset Synth Preset</button>
+      </div>`
+          : '<p class="muted small">Experimental Synth Mode is off. Normal default/uploaded music remains active.</p>'
+      }
+      <p class="guard-note">Ultra / Psychedelic Visual Mode changes the tunnel, HUD, buttons, colors, and pulses. Performance mode returns when switched off.</p>
     `;
   }
 

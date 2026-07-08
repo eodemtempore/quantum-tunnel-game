@@ -20,26 +20,28 @@ export class ExperimentalSynth {
   private fmCarrier?: OscillatorNode;
   private fmMod?: OscillatorNode;
   private fmModGain?: GainNode;
-  private enabled = false;
+  private armed = false;
+  private running = false;
   private levelRoot = 55;
   private stepTimer = 0;
   private stepIndex = 0;
 
   async setEnabled(enabled: boolean, settings: GameSettings): Promise<void> {
-    this.enabled = enabled;
+    this.armed = enabled;
     if (!enabled) {
       this.stop();
       return;
     }
-    await this.ensureStarted(settings);
+    this.applySettings(settings);
   }
 
   async ensureStarted(settings: GameSettings): Promise<void> {
+    if (!this.armed) return;
     if (!this.context) this.createGraph();
     if (!this.context || !this.master) return;
     if (this.context.state !== 'running') await this.context.resume();
     this.applySettings(settings);
-    this.enabled = true;
+    this.running = true;
   }
 
   applySettings(settings: GameSettings): void {
@@ -54,7 +56,7 @@ export class ExperimentalSynth {
   }
 
   update(dt: number, level: LevelConfig, speed: number, steering: number, shieldActive: boolean, particle: ParticleDefinition): void {
-    if (!this.enabled || !this.context || !this.filter || !this.panner) return;
+    if (!this.running || !this.context || !this.filter || !this.panner) return;
     const now = this.context.currentTime;
     const speedRatio = Math.min(1, speed / 75);
     this.levelRoot = 43.65 * Math.pow(2, ((level.level % 12) + (particle.id === 'higgs' ? 7 : 0)) / 12);
@@ -73,7 +75,7 @@ export class ExperimentalSynth {
   }
 
   trigger(event: SynthEvent): void {
-    if (!this.enabled || !this.context || !this.master) return;
+    if (!this.running || !this.context || !this.master) return;
     if (event === 'sync') this.chime([0, 4, 7, 12]);
     if (event === 'nearMiss') this.noiseHit(0.09, 900);
     if (event === 'guard') this.chime([0, 7, 14]);
@@ -88,7 +90,12 @@ export class ExperimentalSynth {
   }
 
   stop(): void {
-    this.enabled = false;
+    this.armed = false;
+    this.stopPlayback();
+  }
+
+  stopPlayback(): void {
+    this.running = false;
     this.drone?.stop();
     this.acid?.stop();
     this.fmCarrier?.stop();

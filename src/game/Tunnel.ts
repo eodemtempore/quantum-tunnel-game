@@ -75,14 +75,20 @@ export class Tunnel {
   update(dt: number, speed: number, level: LevelConfig, audioEnergy: number, glitch: number, ultraIntensity = 0): void {
     const ultraPulse = ultraIntensity * (0.5 + Math.sin(performance.now() * 0.004) * 0.5);
     const ultraTime = performance.now() * 0.001;
+    const darkTrip = ultraIntensity > 0 && level.level >= 7 && level.level <= 10;
     this.group.rotation.z += dt * (0.05 * level.speedMultiplier + ultraIntensity * 0.22);
 
     for (const [index, ring] of this.rings.entries()) {
       ring.position.z += speed * dt;
       if (ring.position.z > 6) ring.position.z -= this.depth;
       if (ultraIntensity > 0) {
-        const hue = (ultraTime * 80 + index * 11 + level.level * 23 + audioEnergy * 80) % 360;
-        this.setRingColor(ring, `hsl(${hue}, 100%, ${58 + ultraPulse * 22}%)`);
+        if (darkTrip) {
+          const light = 26 + ((index * 13 + Math.sin(ultraTime * 5 + index) * 24 + ultraPulse * 45) % 62);
+          this.setRingColor(ring, `hsl(0, 0%, ${light}%)`);
+        } else {
+          const hue = (ultraTime * 80 + index * 11 + level.level * 23 + audioEnergy * 80) % 360;
+          this.setRingColor(ring, `hsl(${hue}, 100%, ${58 + ultraPulse * 22}%)`);
+        }
       }
       this.setRingOpacity(ring, 0.25 + audioEnergy * (0.38 + ultraIntensity * 0.92) + glitch * 0.25 + ultraPulse * 0.34);
       ring.scale.setScalar(
@@ -109,14 +115,16 @@ export class Tunnel {
     }
     positions.needsUpdate = true;
     const lineMaterial = this.speedLines.material as THREE.LineBasicMaterial;
-    if (ultraIntensity > 0) lineMaterial.color.set(`hsl(${(ultraTime * 110 + level.level * 31) % 360}, 100%, 62%)`);
+    if (ultraIntensity > 0) {
+      lineMaterial.color.set(darkTrip ? `hsl(0, 0%, ${70 + ultraPulse * 24}%)` : `hsl(${(ultraTime * 110 + level.level * 31) % 360}, 100%, 62%)`);
+    }
     lineMaterial.opacity = 0.22 + audioEnergy * (0.34 + ultraIntensity * 0.72) + ultraPulse * 0.2;
 
     for (const [index, sprite] of this.codeSprites.entries()) {
       sprite.position.z += speed * dt * (0.72 + audioEnergy * 0.45 + ultraIntensity * 0.7);
       sprite.material.opacity = 0.34 + audioEnergy * 0.45 + ultraIntensity * 0.46;
       if (ultraIntensity > 0) {
-        (sprite.material as THREE.SpriteMaterial).color.set(`hsl(${(ultraTime * 95 + index * 17) % 360}, 100%, 66%)`);
+        (sprite.material as THREE.SpriteMaterial).color.set(darkTrip ? `hsl(0, 0%, ${48 + ((index * 11) % 48)}%)` : `hsl(${(ultraTime * 95 + index * 17) % 360}, 100%, 66%)`);
         sprite.scale.setScalar(0.62 + Math.sin(ultraTime * 4 + index) * 0.18 + ultraIntensity * 0.36);
       }
       sprite.rotation.z += dt * ultraIntensity * 2.4;

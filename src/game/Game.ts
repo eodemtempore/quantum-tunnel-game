@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { AudioEngine } from '../audio/AudioEngine';
 import { ExperimentalSynth } from '../audio/ExperimentalSynth';
+import { SfxEngine } from '../audio/SfxEngine';
 import { PlaylistEntry, PlaylistManager } from '../audio/PlaylistManager';
 import { InputManager } from '../input/InputManager';
 import { AdminPlaylist } from '../ui/AdminPlaylist';
@@ -12,9 +13,10 @@ import { Collectibles } from './Collectibles';
 import { Obstacles } from './Obstacles';
 import { Player } from './Player';
 import { Tunnel } from './Tunnel';
-import { getStageForScore, LEVELS, LevelConfig } from './levels/LevelConfig';
+import { getStageForScore, LEVELS, LevelConfig, QUANTUM_DRIFT_LEVEL } from './levels/LevelConfig';
 
 type GameMode = 'menu' | 'playing' | 'paused' | 'over';
+type StartMode = 'beginning' | 'highest';
 const SYNC_BONUS_SCORE = 500;
 const SYNC_BOOST_SECONDS = 6;
 const SYNC_SCORE_MULTIPLIER = 1.5;
@@ -36,6 +38,7 @@ export class Game {
   private admin!: AdminPlaylist;
   private audio = new AudioEngine();
   private synth = new ExperimentalSynth();
+  private sfx = new SfxEngine();
   private playlist = new PlaylistManager();
   private mode: GameMode = 'menu';
   private particle: ParticleDefinition = getParticle('proton');
@@ -93,14 +96,16 @@ export class Game {
     this.syncVisualModeClass();
     this.audio.setMuted(this.settings.muted);
     this.audio.setVolume(this.settings.volume);
+    this.sfx.setMuted(this.settings.muted);
+    this.sfx.setVolume(this.settings.volume);
     this.input = new InputManager(this.canvasHost, {
       laneMode: this.settings.laneMode,
       tiltEnabled: this.settings.tiltEnabled
     });
 
     this.ui = new UI(this.shell, this.settings, {
-      onStart: () => void this.startRun(),
-      onRestart: () => void this.startRun(),
+      onStart: (mode) => void this.startRun(mode),
+      onRestart: () => void this.startRun('beginning'),
       onPauseToggle: () => this.togglePause(),
       onExitGame: () => this.exitToMenu(),
       onShowMenu: () => this.renderMenu(),
@@ -164,8 +169,9 @@ export class Game {
     this.ui.renderMenu(Storage.getUnlockedParticles(), this.playlist.getPublicPlaylist(), this.highScore);
   }
 
-  private async startRun(): Promise<void> {
+  private async startRun(startMode: StartMode = 'beginning'): Promise<void> {
     await this.enterPlayLayoutIfMobile();
+    await this.sfx.ensureStarted();
     if (this.settings.experimentalSynthEnabled) {
       this.audio.stopTrack(true);
       await this.synth.ensureStarted(this.settings);
@@ -182,7 +188,8 @@ export class Game {
       await this.audio.ensureStarted();
       await this.audio.playTrack();
     }
-    this.score = 0;
+    const startScore = startMode === 'highest' ? this.getScoreForHighestLevel() : 0;
+    this.score = startScore;
     this.elapsed = 0;
     this.speed = 14;
     this.syncBoostTime = 0;
@@ -191,10 +198,12 @@ export class Game {
     this.mode = 'playing';
     this.unlockMessage = '';
     this.higgsAnnounced = Storage.getUnlockedParticles().includes('higgs');
-    this.level = LEVELS[0];
-    this.scene.background = new THREE.Color(this.level.palette.background);
+    this.level = getStageForScore(startScore);
+    this.syncVisualModeClass();
+    this.scene.background = new THREE.Color(this.getSceneBackground());
     this.scene.fog = new THREE.FogExp2(this.level.palette.background, 0.018);
     this.tunnel.setLevel(this.level);
+    this.obstacles.setUltraMode(this.settings.ultraVisualsEnabled, this.isDarkTripLevel());
     this.obstacles.clear();
     this.collectibles.clear();
     this.player.setParticle(this.particle);
@@ -266,7 +275,11 @@ export class Game {
     this.syncVisualModeClass();
     this.audio.setMuted(this.settings.muted);
     this.audio.setVolume(this.settings.volume);
+    this.sfx.setMuted(this.settings.muted);
+    this.sfx.setVolume(this.settings.volume);
     this.synth.applySettings(this.settings);
+    this.scene.background = new THREE.Color(this.getSceneBackground());
+    this.obstacles.setUltraMode(this.settings.ultraVisualsEnabled, this.isDarkTripLevel());
     this.input.setOptions({ laneMode: this.settings.laneMode, tiltEnabled: this.settings.tiltEnabled });
     this.ui.setSettings(this.settings);
     this.renderMenu();
@@ -464,9 +477,11 @@ export class Game {
     const nextLevel = getStageForScore(this.score);
     if (nextLevel.level !== this.level.level || nextLevel.name !== this.level.name) {
       this.level = nextLevel;
-      this.scene.background = new THREE.Color(this.level.palette.background);
+      this.syncVisualModeClass();
+      this.scene.background = new THREE.Color(this.getSceneBackground());
       this.scene.fog = new THREE.FogExp2(this.level.palette.background, 0.018);
       this.tunnel.setLevel(this.level);
+      this.obstacles.setUltraMode(this.settings.ultraVisualsEnabled, this.isDarkTripLevel());
       this.ui.notify(`Level ${this.level.level}: ${this.level.name} - ${this.level.signatureMechanic}`);
       this.synth.trigger('level');
     }
@@ -495,11 +510,13 @@ export class Game {
         this.syncBoostTime = Math.max(this.syncBoostTime, SYNC_BOOST_SECONDS);
         this.glitch = Math.max(this.glitch, 0.65);
         this.haptic([12, 18, 12]);
+        this.sfx.play('sync');
         this.synth.trigger('sync');
         this.ui.notify(`Quantum Sync +${SYNC_BONUS_SCORE}: ${SYNC_SCORE_MULTIPLIER.toFixed(1)}x scoring.`);
       } else {
         this.player.activateShield();
         this.haptic([22, 20, 22]);
+        this.sfx.play('guard');
         this.synth.trigger('guard');
         this.ui.notify(`Green Guard online: ${Math.round(this.particle.shieldDuration)} seconds.`);
       }
@@ -520,17 +537,20 @@ export class Game {
         this.runNearMisses += 1;
         this.score += 240 * this.particle.scoreMultiplier * this.getSyncMultiplier();
         this.glitch = 1;
+        this.sfx.play('nearMiss');
         this.synth.trigger('nearMiss');
       } else if (this.player.consumeShield()) {
         this.obstacles.remove(hit.obstacle);
         this.score += 120;
         this.haptic([24, 30, 24]);
+        this.sfx.play('hit');
         this.ui.notify('Guard absorbed a red instability.');
       } else if (this.player.isInvulnerable()) {
         this.obstacles.remove(hit.obstacle);
         this.score += 60;
       } else {
         this.haptic([80, 40, 120]);
+        this.sfx.play('hit');
         this.synth.trigger('collision');
         this.endRun();
         return;
@@ -547,6 +567,7 @@ export class Game {
 
     this.highScore = Math.max(this.highScore, this.score, Storage.getHighScore());
     this.glitch = Math.max(0, this.glitch - dt * 1.9);
+    this.obstacles.setUltraMode(this.settings.ultraVisualsEnabled, this.isDarkTripLevel());
     this.tunnel.update(dt, this.speed, this.level, energy, this.glitch, this.getUltraIntensity());
     this.ui.updateHud({
       score: this.score,
@@ -591,13 +612,31 @@ export class Game {
     return Math.min(1, (0.32 + this.level.level * 0.018 + this.score / 2_500_000) * fpsScale);
   }
 
+  private isDarkTripLevel(): boolean {
+    return Boolean(this.settings?.ultraVisualsEnabled && this.level.level >= 7 && this.level.level <= 10);
+  }
+
+  private getSceneBackground(): string {
+    return this.isDarkTripLevel() ? '#000000' : this.level.palette.background;
+  }
+
+  private getScoreForHighestLevel(): number {
+    const highestLevel = Math.max(1, Storage.getProfileStats().highestLevel);
+    if (highestLevel <= 30) {
+      return LEVELS.find((candidate) => candidate.level === highestLevel)?.requiredScore ?? 0;
+    }
+    return QUANTUM_DRIFT_LEVEL.requiredScore + Math.max(0, highestLevel - QUANTUM_DRIFT_LEVEL.level) * 25_000;
+  }
+
   private syncVisualModeClass(): void {
     document.body.classList.toggle('ultra-visuals', Boolean(this.settings?.ultraVisualsEnabled));
+    document.body.classList.toggle('dark-trip', this.isDarkTripLevel());
   }
 
   private endRun(): void {
     this.mode = 'over';
     this.audio.stopTrack(true);
+    this.sfx.play('gameOver');
     this.synth.stopPlayback();
     Storage.recordRunProgress(this.level.level, this.runSyncOrbs, this.runNearMisses);
     Storage.setHighScore(this.score);

@@ -35,7 +35,7 @@ export interface HudState {
 }
 
 interface UICallbacks {
-  onStart: () => void;
+  onStart: (mode: 'beginning' | 'highest') => void;
   onRestart: () => void;
   onPauseToggle: () => void;
   onExitGame: () => void;
@@ -62,7 +62,7 @@ interface UICallbacks {
   onTrackControl: (control: 'play' | 'pause' | 'restart') => void;
 }
 
-type MenuTab = 'particle' | 'music' | 'settings' | 'experimental';
+type MenuTab = 'particle' | 'music' | 'mobile' | 'profile' | 'experimental';
 
 export class UI {
   private menu: HTMLDivElement;
@@ -141,13 +141,14 @@ export class UI {
           <strong>${Math.floor(highScore).toLocaleString()}</strong>
           <span>Higgs unlocks at ${HIGGS_UNLOCK_SCORE.toLocaleString()} · After Level 30: Quantum Drift endless mode</span>
         </div>
-        <button class="primary start-button" data-start>Tap to Start</button>
+        ${this.renderStartButtons()}
       </div>
       <section class="menu-section cockpit-panel">
         <div class="tab-row" role="tablist" aria-label="Game setup">
           ${this.renderTabButton('particle', 'Particle')}
           ${this.renderTabButton('music', 'Music')}
-          ${this.renderTabButton('settings', 'iPhone')}
+          ${this.renderTabButton('mobile', 'Mobile')}
+          ${this.renderTabButton('profile', 'Profile')}
           ${this.renderTabButton('experimental', 'Experimental')}
         </div>
         <div class="tab-panel">
@@ -292,7 +293,9 @@ export class UI {
   }
 
   private bindMenu(): void {
-    this.menu.querySelector('[data-start]')?.addEventListener('click', this.callbacks.onStart);
+    this.menu.querySelectorAll<HTMLButtonElement>('[data-start]').forEach((button) => {
+      button.addEventListener('click', () => this.callbacks.onStart(button.dataset.start === 'highest' ? 'highest' : 'beginning'));
+    });
     this.menu.querySelector('[data-admin]')?.addEventListener('click', this.callbacks.onOpenAdmin);
     this.menu.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((button) => {
       button.addEventListener('click', () => {
@@ -372,7 +375,8 @@ export class UI {
 
   private renderActiveTab(): string {
     if (this.activeTab === 'music') return this.renderMusicTab();
-    if (this.activeTab === 'settings') return this.renderSettingsTab();
+    if (this.activeTab === 'mobile') return this.renderSettingsTab();
+    if (this.activeTab === 'profile') return this.renderProfileTab();
     if (this.activeTab === 'experimental') return this.renderExperimentalTab();
     return this.renderParticleTab();
   }
@@ -394,7 +398,18 @@ export class UI {
         <p><strong>Levels:</strong> stages advance by score through Level 30, then Quantum Drift continues endlessly.</p>
         <p><strong>Higgs Boson:</strong> unlocks after ${HIGGS_UNLOCK_SCORE.toLocaleString()} high score.</p>
       </div>
-      ${this.renderProfileCard()}
+    `;
+  }
+
+  private renderStartButtons(): string {
+    if (this.profileStats.highestLevel <= 1) {
+      return '<button class="primary start-button" data-start="beginning">Tap to Start</button>';
+    }
+    return `
+      <div class="start-options">
+        <button class="primary start-button" data-start="beginning">Start from Beginning</button>
+        <button class="secondary start-button" data-start="highest">Start from Highest Level ${this.profileStats.highestLevel}</button>
+      </div>
     `;
   }
 
@@ -413,16 +428,27 @@ export class UI {
     `;
   }
 
-  private renderProfileCard(): string {
+  private renderProfileTab(): string {
     const higgsUnlocked = this.unlocked.includes('higgs') ? 'Unlocked' : `Locked until ${HIGGS_UNLOCK_SCORE.toLocaleString()}`;
+    const selectedParticle = this.getParticleLabel(this.selectedParticle);
     return `
+      <div class="section-title compact-title">
+        <h2>Profile</h2>
+        <span>${escapeHtml(this.username)}</span>
+      </div>
       <div class="profile-card">
-        <h3>Profile</h3>
-        <p><strong>${escapeHtml(this.username)}</strong> · ${escapeHtml(this.getParticleLabel(this.selectedParticle))}</p>
-        <p>High score: ${Math.floor(this.highScore).toLocaleString()} by ${escapeHtml(this.profileStats.highScoreName)}</p>
-        <p>Highest level: ${this.profileStats.highestLevel} · Higgs: ${higgsUnlocked}</p>
-        <p>Sync Orbs: ${this.profileStats.totalSyncOrbs.toLocaleString()} · Near-misses: ${this.profileStats.totalNearMisses.toLocaleString()}</p>
-        <p class="muted small">Username is stored locally on this device only.</p>
+        <p><strong>Username:</strong> ${escapeHtml(this.username)}</p>
+        <p><strong>Selected particle:</strong> ${escapeHtml(selectedParticle)}</p>
+        <p><strong>High score:</strong> ${Math.floor(this.highScore).toLocaleString()} by ${escapeHtml(this.profileStats.highScoreName)}</p>
+        <p><strong>Highest level reached:</strong> ${this.profileStats.highestLevel}</p>
+        <p><strong>Higgs Boson:</strong> ${escapeHtml(higgsUnlocked)}</p>
+        <p><strong>Sync Orbs:</strong> ${this.profileStats.totalSyncOrbs.toLocaleString()} · <strong>Near-misses:</strong> ${this.profileStats.totalNearMisses.toLocaleString()}</p>
+        <form class="username-edit" data-username-form>
+          <label>Edit Username<input name="username" maxlength="16" value="${escapeHtml(this.username)}" /></label>
+          ${this.usernameError ? `<p class="warning">${escapeHtml(this.usernameError)}</p>` : ''}
+          <button class="secondary wide" type="submit">Save Username</button>
+        </form>
+        <p class="muted small">Username and profile progress are stored locally on this device only. No login or public leaderboard is used.</p>
       </div>
     `;
   }
@@ -472,7 +498,7 @@ export class UI {
   private renderSettingsTab(): string {
     return `
       <div class="section-title compact-title">
-        <h2>iPhone Settings</h2>
+        <h2>Mobile Settings</h2>
         <span>landscape, 360 steering</span>
       </div>
       <label class="toggle"><input type="checkbox" data-lane ${this.settings.laneMode ? 'checked' : ''}/> Use 5-lane fallback instead of 360 steering</label>
@@ -481,11 +507,6 @@ export class UI {
         <button class="secondary" type="button" data-tilt>${this.settings.tiltEnabled ? 'Disable Tilt' : 'Enable Tilt Steering'}</button>
         <button class="secondary" type="button" data-recalibrate-tilt>Recalibrate Tilt</button>
       </div>
-      <form class="username-edit" data-username-form>
-        <label>Edit Username<input name="username" maxlength="16" value="${escapeHtml(this.username)}" /></label>
-        ${this.usernameError ? `<p class="warning">${escapeHtml(this.usernameError)}</p>` : ''}
-        <button class="secondary wide" type="submit">Save Username</button>
-      </form>
       <p class="guard-note">Tilt steering asks for iOS motion permission when supported. Touch and keyboard controls always remain available.</p>
       <p class="muted small">${this.renderTiltDebug()}</p>
     `;

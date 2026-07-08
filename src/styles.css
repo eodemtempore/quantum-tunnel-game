@@ -426,6 +426,12 @@ body.ultra-visuals .primary {
   width: 100%;
 }
 
+.start-options {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
 .menu-section {
   padding: 12px;
 }
@@ -439,15 +445,18 @@ body.ultra-visuals .primary {
 
 .tab-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
   margin-bottom: 10px;
 }
 
 .tab-button {
   min-height: 40px;
+  min-width: 0;
+  padding: 0 6px;
   color: #bfffea;
   background: rgba(0, 10, 8, 0.72);
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -692,6 +701,10 @@ body.ultra-visuals .primary {
   font-size: 13px;
 }
 
+.profile-card .username-edit {
+  margin-top: 10px;
+}
+
 .how-play-panel p {
   margin: 5px 0;
 }
@@ -893,6 +906,34 @@ body.ultra-visuals .toast {
   box-shadow: 0 0 24px rgba(255, 0, 204, 0.28);
 }
 
+body.ultra-visuals.dark-trip {
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.13), transparent 18rem),
+    radial-gradient(circle at 76% 72%, rgba(160, 160, 160, 0.12), transparent 22rem),
+    #000;
+}
+
+body.ultra-visuals.dark-trip::before {
+  background:
+    conic-gradient(from 0deg at 50% 50%, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.02), rgba(180, 180, 180, 0.12), rgba(255, 255, 255, 0.08)),
+    repeating-radial-gradient(circle at 50% 50%, transparent 0 16px, rgba(255, 255, 255, 0.055) 17px 18px);
+  mix-blend-mode: difference;
+}
+
+body.ultra-visuals.dark-trip .hero-panel,
+body.ultra-visuals.dark-trip .panel,
+body.ultra-visuals.dark-trip .menu-section,
+body.ultra-visuals.dark-trip .hud-top,
+body.ultra-visuals.dark-trip .hud-bottom {
+  border-color: rgba(255, 255, 255, 0.48);
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0 1px, transparent 1px 9px),
+    rgba(0, 0, 0, 0.78);
+  box-shadow:
+    0 0 28px rgba(255, 255, 255, 0.14),
+    inset 0 0 28px rgba(255, 255, 255, 0.08);
+}
+
 @media (min-width: 740px) {
   .screen {
     padding: 22px;
@@ -999,6 +1040,10 @@ body.ultra-visuals .toast {
 
   .primary {
     min-height: 40px;
+  }
+
+  .start-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .menu-section {

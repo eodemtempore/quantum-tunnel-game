@@ -70,7 +70,7 @@ export class InputManager {
     }
 
     const keyboardTarget = currentAngle + this.keyboardDirection * dt * 3.4;
-    const tiltTarget = this.options.tiltEnabled && this.mobileLike ? this.tilt * dt * 12.5 : 0;
+    const tiltTarget = this.options.tiltEnabled && this.mobileLike ? this.tilt * dt * 40 : 0;
     this.currentAngle = this.normalizeAngle(keyboardTarget + tiltTarget);
     return this.currentAngle;
   }

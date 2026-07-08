@@ -73,25 +73,32 @@ export class ExperimentalSynth {
     this.levelRoot = 43.65 * Math.pow(2, ((level.level % 12) + (particle.id === 'higgs' ? 7 : 0)) / 12);
     const levelPressure = Math.min(1, level.level / 30);
     const wobble = Math.sin(now * (0.7 + levelPressure * 2.2) + this.runSeed * 12);
-    this.panner.pan.setTargetAtTime(Math.max(-1, Math.min(1, steering + wobble * levelPressure * 0.28)), now, 0.04);
-    this.filter.frequency.setTargetAtTime(180 + speedRatio * 2300 + Math.abs(steering) * 820 + levelPressure * 760 + wobble * 170, now, 0.035);
-    this.filter.Q.setTargetAtTime(6 + speedRatio * 14 + levelPressure * 9, now, 0.05);
-    this.fmMod?.frequency.setTargetAtTime(2.4 + levelPressure * 9 + speedRatio * 4 + Math.abs(wobble) * 2.4, now, 0.06);
-    this.fmModGain?.gain.setTargetAtTime((70 + speedRatio * 420 + levelPressure * 280) * (shieldActive ? 0.5 : 1), now, 0.04);
-    this.drone?.frequency.setTargetAtTime(this.levelRoot * (0.48 + levelPressure * 0.08), now, 0.12);
-    this.droneGain?.gain.setTargetAtTime((shieldActive ? 0.24 : 0.1 + levelPressure * 0.08), now, 0.08);
+    const character = this.getParticleCharacter(particle);
+    const steeringCutoff = Math.pow(Math.abs(steering), 0.72) * character.steeringFilter;
+    this.panner.pan.setTargetAtTime(Math.max(-0.32, Math.min(0.32, steering * character.pan + wobble * levelPressure * 0.08)), now, 0.04);
+    this.filter.frequency.setTargetAtTime(
+      (170 + speedRatio * 2300 + steeringCutoff + levelPressure * 760 + wobble * 140) * character.brightness,
+      now,
+      0.035
+    );
+    this.filter.Q.setTargetAtTime((6 + speedRatio * 14 + levelPressure * 9) * character.resonance, now, 0.05);
+    this.fmMod?.frequency.setTargetAtTime((2.4 + levelPressure * 9 + speedRatio * 4 + Math.abs(wobble) * 2.4) * character.fmSpeed, now, 0.06);
+    this.fmModGain?.gain.setTargetAtTime((70 + speedRatio * 420 + levelPressure * 280) * character.fmDepth * (shieldActive ? 0.5 : 1), now, 0.04);
+    this.acidGain?.gain.setTargetAtTime(character.acidGain * (0.14 + speedRatio * 0.1 + levelPressure * 0.06), now, 0.04);
+    this.drone?.frequency.setTargetAtTime(this.levelRoot * character.droneRatio * (1 + levelPressure * 0.08), now, 0.12);
+    this.droneGain?.gain.setTargetAtTime((shieldActive ? 0.24 : 0.1 + levelPressure * 0.08) * character.droneGain, now, 0.08);
 
     this.stepTimer -= dt;
     this.liquidTimer -= dt;
     const tempo = 0.19 - speedRatio * 0.085 - levelPressure * 0.035;
     if (this.stepTimer <= 0) {
       this.stepTimer = Math.max(0.055, tempo);
-      this.sequenceStep(speedRatio, levelPressure);
+      this.sequenceStep(speedRatio, levelPressure, character);
       if (Math.random() < levelPressure * 0.22) this.noiseHit(0.045 + levelPressure * 0.035, 650 + speedRatio * 2200);
     }
     if (this.liquidTimer <= 0) {
       this.liquidTimer = 1.2 + Math.random() * Math.max(0.45, 2.6 - levelPressure * 1.4);
-      this.liquidSweep(speedRatio, levelPressure);
+      this.liquidSweep(speedRatio, levelPressure * character.shimmer);
     }
   }
 
@@ -207,14 +214,42 @@ export class ExperimentalSynth {
     this.feedback?.gain.setTargetAtTime(0.18 + Math.min(0.38, level.level * 0.012), now, 0.08);
   }
 
-  private sequenceStep(speedRatio: number, levelPressure: number): void {
+  private getParticleCharacter(particle: ParticleDefinition): {
+    acidGain: number;
+    brightness: number;
+    droneGain: number;
+    droneRatio: number;
+    fmDepth: number;
+    fmSpeed: number;
+    pan: number;
+    resonance: number;
+    shimmer: number;
+    steeringFilter: number;
+  } {
+    if (particle.id === 'electron') {
+      return { acidGain: 1.08, brightness: 1.2, droneGain: 0.82, droneRatio: 0.52, fmDepth: 1.32, fmSpeed: 1.45, pan: 0.22, resonance: 1.18, shimmer: 1.2, steeringFilter: 1800 };
+    }
+    if (particle.id === 'neutron') {
+      return { acidGain: 0.82, brightness: 0.76, droneGain: 1.42, droneRatio: 0.38, fmDepth: 0.78, fmSpeed: 0.72, pan: 0.1, resonance: 0.82, shimmer: 0.72, steeringFilter: 950 };
+    }
+    if (particle.id === 'higgs') {
+      return { acidGain: 0.98, brightness: 1.08, droneGain: 1.15, droneRatio: 0.5, fmDepth: 1.18, fmSpeed: 1.08, pan: 0.28, resonance: 1.05, shimmer: 1.65, steeringFilter: 1500 };
+    }
+    return { acidGain: 1, brightness: 0.96, droneGain: 1.02, droneRatio: 0.48, fmDepth: 1, fmSpeed: 1, pan: 0.16, resonance: 0.98, shimmer: 1, steeringFilter: 1250 };
+  }
+
+  private sequenceStep(
+    speedRatio: number,
+    levelPressure: number,
+    character: ReturnType<ExperimentalSynth['getParticleCharacter']>
+  ): void {
     if (!this.context || !this.acid || !this.fmCarrier) return;
     const note = this.arpPattern[this.stepIndex % this.arpPattern.length] + (this.stepIndex % 4 === 0 ? 12 : 0);
     const mutation = Math.random() < levelPressure * 0.18 ? (Math.random() > 0.5 ? 5 : -2) : 0;
     const freq = this.levelRoot * Math.pow(2, (note + mutation) / 12);
     const now = this.context.currentTime;
     this.acid.frequency.setTargetAtTime(freq, now, 0.015);
-    this.fmCarrier.frequency.setTargetAtTime(freq * (1.35 + speedRatio * 0.7 + levelPressure * 0.35), now, 0.03);
+    this.fmCarrier.frequency.setTargetAtTime(freq * (1.35 + speedRatio * 0.7 + levelPressure * 0.35) * character.shimmer, now, 0.03);
     this.stepIndex += 1;
   }
 

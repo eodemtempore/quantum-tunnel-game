@@ -3,6 +3,7 @@ export type SfxEvent = 'sync' | 'guard' | 'nearMiss' | 'hit' | 'gameOver';
 export class SfxEngine {
   private context?: AudioContext;
   private master?: GainNode;
+  private limiter?: DynamicsCompressorNode;
   private muted = false;
   private volume = 0.72;
 
@@ -11,8 +12,15 @@ export class SfxEngine {
       const AudioCtor = window.AudioContext || window.webkitAudioContext;
       this.context = new AudioCtor();
       this.master = this.context.createGain();
-      this.master.gain.value = this.muted ? 0 : this.volume * 0.42;
-      this.master.connect(this.context.destination);
+      this.limiter = this.context.createDynamicsCompressor();
+      this.limiter.threshold.value = -10;
+      this.limiter.knee.value = 8;
+      this.limiter.ratio.value = 8;
+      this.limiter.attack.value = 0.003;
+      this.limiter.release.value = 0.12;
+      this.master.gain.value = this.muted ? 0 : this.volume * 1.85;
+      this.master.connect(this.limiter);
+      this.limiter.connect(this.context.destination);
     }
     if (this.context.state !== 'running') await this.context.resume();
   }
@@ -20,14 +28,14 @@ export class SfxEngine {
   setMuted(muted: boolean): void {
     this.muted = muted;
     if (this.master && this.context) {
-      this.master.gain.setTargetAtTime(muted ? 0 : this.volume * 0.42, this.context.currentTime, 0.025);
+      this.master.gain.setTargetAtTime(muted ? 0 : this.volume * 1.85, this.context.currentTime, 0.025);
     }
   }
 
   setVolume(volume: number): void {
     this.volume = Math.max(0, Math.min(1, volume));
     if (this.master && this.context) {
-      this.master.gain.setTargetAtTime(this.muted ? 0 : this.volume * 0.42, this.context.currentTime, 0.025);
+      this.master.gain.setTargetAtTime(this.muted ? 0 : this.volume * 1.85, this.context.currentTime, 0.025);
     }
   }
 

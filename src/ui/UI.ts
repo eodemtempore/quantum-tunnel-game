@@ -326,7 +326,8 @@ export class UI {
     });
     this.menu.querySelector<HTMLInputElement>('[data-volume]')?.addEventListener('input', (event) => {
       const input = event.currentTarget as HTMLInputElement;
-      this.callbacks.onSetVolume(Number(input.value) / 100);
+      const sliderValue = Number(input.value) / 100;
+      this.callbacks.onSetVolume(Math.min(1, Math.pow(sliderValue, 0.65)));
     });
     this.menu.querySelector('[data-fix-audio]')?.addEventListener('click', this.callbacks.onFixAudio);
     this.menu.querySelector('[data-test-sound]')?.addEventListener('click', this.callbacks.onTestSound);

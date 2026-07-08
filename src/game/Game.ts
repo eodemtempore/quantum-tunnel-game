@@ -188,8 +188,8 @@ export class Game {
       await this.audio.ensureStarted();
       await this.audio.playTrack();
     }
-    const startScore = startMode === 'highest' ? this.getScoreForHighestLevel() : 0;
-    this.score = startScore;
+    const startLevel = startMode === 'highest' ? this.getHighestSavedLevel() : LEVELS[0];
+    this.score = 0;
     this.elapsed = 0;
     this.speed = 14;
     this.syncBoostTime = 0;
@@ -198,7 +198,7 @@ export class Game {
     this.mode = 'playing';
     this.unlockMessage = '';
     this.higgsAnnounced = Storage.getUnlockedParticles().includes('higgs');
-    this.level = getStageForScore(startScore);
+    this.level = startLevel;
     this.syncVisualModeClass();
     this.scene.background = new THREE.Color(this.getSceneBackground());
     this.scene.fog = new THREE.FogExp2(this.level.palette.background, 0.018);
@@ -620,12 +620,19 @@ export class Game {
     return this.isDarkTripLevel() ? '#000000' : this.level.palette.background;
   }
 
-  private getScoreForHighestLevel(): number {
+  private getHighestSavedLevel(): LevelConfig {
     const highestLevel = Math.max(1, Storage.getProfileStats().highestLevel);
     if (highestLevel <= 30) {
-      return LEVELS.find((candidate) => candidate.level === highestLevel)?.requiredScore ?? 0;
+      return LEVELS.find((candidate) => candidate.level === highestLevel) ?? LEVELS[0];
     }
-    return QUANTUM_DRIFT_LEVEL.requiredScore + Math.max(0, highestLevel - QUANTUM_DRIFT_LEVEL.level) * 25_000;
+    return {
+      ...QUANTUM_DRIFT_LEVEL,
+      level: highestLevel,
+      speedMultiplier: QUANTUM_DRIFT_LEVEL.speedMultiplier + Math.max(0, highestLevel - QUANTUM_DRIFT_LEVEL.level) * 0.08,
+      obstacleDensity: QUANTUM_DRIFT_LEVEL.obstacleDensity + Math.max(0, highestLevel - QUANTUM_DRIFT_LEVEL.level) * 0.05,
+      musicIntensity: QUANTUM_DRIFT_LEVEL.musicIntensity + Math.max(0, highestLevel - QUANTUM_DRIFT_LEVEL.level) * 0.03,
+      tunnelShape: (['circle', 'square', 'hex'] as const)[Math.max(0, highestLevel - QUANTUM_DRIFT_LEVEL.level) % 3]
+    };
   }
 
   private syncVisualModeClass(): void {

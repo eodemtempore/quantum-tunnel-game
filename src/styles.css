@@ -69,8 +69,17 @@ body.play-fullscreen .canvas-host {
   position: fixed;
   inset: 0;
   width: 100vw;
+  width: 100dvw;
   height: 100dvh;
+  min-width: 100vw;
+  min-height: 100dvh;
   overflow: hidden;
+}
+
+body.play-fullscreen .canvas-host canvas {
+  width: 100vw !important;
+  width: 100dvw !important;
+  height: 100dvh !important;
 }
 
 .game-shell::before,

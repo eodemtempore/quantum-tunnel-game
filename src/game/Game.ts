@@ -153,7 +153,7 @@ export class Game {
   }
 
   private async startRun(): Promise<void> {
-    await this.enterPlayLayout();
+    await this.enterPlayLayoutIfMobile();
     await this.audio.ensureStarted();
     if (this.selectedTrack) {
       const state = await this.audio.usePlaylistTrack(this.selectedTrack);
@@ -270,7 +270,13 @@ export class Game {
     this.renderMenu();
   }
 
-  private async enterPlayLayout(): Promise<void> {
+  private async enterPlayLayoutIfMobile(): Promise<void> {
+    if (!this.isMobileViewport()) {
+      document.body.classList.remove('play-fullscreen');
+      this.resize();
+      return;
+    }
+
     document.body.classList.add('play-fullscreen');
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     try {
@@ -280,6 +286,13 @@ export class Game {
       // iPhone Safari has limited element fullscreen. The fixed play layout is intentional.
     }
     this.resize();
+    requestAnimationFrame(() => this.resize());
+    window.setTimeout(() => this.resize(), 120);
+    window.setTimeout(() => this.resize(), 420);
+  }
+
+  private isMobileViewport(): boolean {
+    return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1 || Math.min(window.innerWidth, window.innerHeight) < 740;
   }
 
   private setUsername(username: string): void {
@@ -502,12 +515,23 @@ export class Game {
   }
 
   private resize(): void {
-    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const viewportWidth = Math.max(
+      1,
+      Math.floor(window.innerWidth || 0),
+      Math.floor(document.documentElement.clientWidth || 0),
+      Math.floor(window.visualViewport?.width ?? 0)
+    );
+    const viewportHeight = Math.max(
+      1,
+      Math.floor(window.innerHeight || 0),
+      Math.floor(document.documentElement.clientHeight || 0),
+      Math.floor(window.visualViewport?.height ?? 0)
+    );
     document.documentElement.style.setProperty('--app-width', `${viewportWidth}px`);
     document.documentElement.style.setProperty('--app-height', `${viewportHeight}px`);
-    const width = Math.max(1, Math.floor(viewportWidth));
-    const height = Math.max(1, Math.floor(viewportHeight));
+    const rect = this.canvasHost.getBoundingClientRect();
+    const width = Math.max(1, Math.floor(rect.width || viewportWidth));
+    const height = Math.max(1, Math.floor(rect.height || viewportHeight));
     const aspect = width / height;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.6));
     this.camera.fov = aspect < 1.35 ? 74 : 66;

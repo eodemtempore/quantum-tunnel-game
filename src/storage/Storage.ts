@@ -7,6 +7,7 @@ const ADMIN_PLAYLIST_KEY = 'qt.adminPlaylist';
 const SETTINGS_KEY = 'qt.settings';
 const USERNAME_KEY = 'qt.username';
 const PROFILE_STATS_KEY = 'qt.profileStats';
+const DAILY_CONTINUE_KEY = 'qt.dailyContinueDate';
 
 export interface GameSettings {
   muted: boolean;
@@ -74,6 +75,13 @@ function readJson<T>(key: string, fallback: T): T {
 
 function writeJson<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+function localDateKey(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export const Storage = {
@@ -155,6 +163,14 @@ export const Storage = {
     stats.totalSyncOrbs += Math.max(0, syncOrbs);
     stats.totalNearMisses += Math.max(0, nearMisses);
     this.setProfileStats(stats);
+  },
+
+  hasUsedDailyContinue(): boolean {
+    return localStorage.getItem(DAILY_CONTINUE_KEY) === localDateKey();
+  },
+
+  markDailyContinueUsed(): void {
+    localStorage.setItem(DAILY_CONTINUE_KEY, localDateKey());
   },
 
   getAdminPlaylist(): PlaylistEntry[] {

@@ -61,6 +61,9 @@ export class Game {
   private runSyncOrbs = 0;
   private runNearMisses = 0;
   private fpsAverage = 60;
+  private runProgressOffset = 0;
+  private pendingFinalScore?: number;
+  private pendingFinalLevel?: LevelConfig;
 
   constructor(private root: HTMLElement) {}
 
@@ -105,10 +108,18 @@ export class Game {
 
     this.ui = new UI(this.shell, this.settings, {
       onStart: (mode) => void this.startRun(mode),
-      onRestart: () => void this.startRun('beginning'),
+      onRestart: () => {
+        this.finalizePendingRun();
+        void this.startRun('beginning');
+      },
+      onContinueRun: () => void this.continueRun(),
       onPauseToggle: () => this.togglePause(),
       onExitGame: () => this.exitToMenu(),
-      onShowMenu: () => this.renderMenu(),
+      onShowMenu: () => {
+        this.finalizePendingRun();
+        this.mode = 'menu';
+        this.renderMenu();
+      },
       onSelectParticle: (id) => this.selectParticle(id),
       onSelectTrack: (id) => void this.selectTrack(id),
       onUploadTrack: (file) => void this.uploadTrack(file),
@@ -189,6 +200,9 @@ export class Game {
       await this.audio.playTrack();
     }
     const startLevel = startMode === 'highest' ? this.getHighestSavedLevel() : LEVELS[0];
+    this.runProgressOffset = startMode === 'highest' ? this.getLevelRequiredScore(startLevel) : 0;
+    this.pendingFinalScore = undefined;
+    this.pendingFinalLevel = undefined;
     this.score = 0;
     this.elapsed = 0;
     this.speed = 14;
@@ -204,6 +218,7 @@ export class Game {
     this.scene.fog = new THREE.FogExp2(this.level.palette.background, 0.018);
     this.tunnel.setLevel(this.level);
     this.obstacles.setUltraMode(this.settings.ultraVisualsEnabled, this.isDarkTripLevel());
+    this.audio.setLevel(this.level, 0);
     this.obstacles.clear();
     this.collectibles.clear();
     this.player.setParticle(this.particle);
@@ -474,7 +489,7 @@ export class Game {
   private update(dt: number, energy: number): void {
     this.elapsed += dt;
     this.syncBoostTime = Math.max(0, this.syncBoostTime - dt);
-    const nextLevel = getStageForScore(this.score);
+    const nextLevel = getStageForScore(this.score + this.runProgressOffset);
     if (nextLevel.level !== this.level.level || nextLevel.name !== this.level.name) {
       this.level = nextLevel;
       this.syncVisualModeClass();
@@ -635,6 +650,13 @@ export class Game {
     };
   }
 
+  private getLevelRequiredScore(level: LevelConfig): number {
+    if (level.level <= 30) {
+      return LEVELS.find((candidate) => candidate.level === level.level)?.requiredScore ?? 0;
+    }
+    return QUANTUM_DRIFT_LEVEL.requiredScore + Math.max(0, level.level - QUANTUM_DRIFT_LEVEL.level) * 25_000;
+  }
+
   private syncVisualModeClass(): void {
     document.body.classList.toggle('ultra-visuals', Boolean(this.settings?.ultraVisualsEnabled));
     document.body.classList.toggle('dark-trip', this.isDarkTripLevel());
@@ -645,14 +667,57 @@ export class Game {
     this.audio.stopTrack(true);
     this.sfx.play('gameOver');
     this.synth.stopPlayback();
-    Storage.recordRunProgress(this.level.level, this.runSyncOrbs, this.runNearMisses);
-    Storage.setHighScore(this.score);
-    if (this.score >= HIGGS_UNLOCK_SCORE) {
+    this.pendingFinalScore = this.score;
+    this.pendingFinalLevel = this.level;
+    const continueAvailable = !Storage.hasUsedDailyContinue();
+    if (!continueAvailable) this.finalizePendingRun();
+    this.highScore = Math.max(this.highScore, Storage.getHighScore());
+    this.ui.showGameOver(this.score, this.highScore, this.level, this.unlockMessage, continueAvailable);
+  }
+
+  private async continueRun(): Promise<void> {
+    if (this.mode !== 'over' || Storage.hasUsedDailyContinue()) return;
+    Storage.markDailyContinueUsed();
+    this.pendingFinalScore = undefined;
+    this.pendingFinalLevel = undefined;
+    this.mode = 'playing';
+    await this.enterPlayLayoutIfMobile();
+    await this.sfx.ensureStarted();
+    if (this.settings.experimentalSynthEnabled) {
+      this.audio.stopTrack(true);
+      await this.synth.ensureStarted(this.settings);
+      this.currentTrackName = 'Experimental Synth Mode';
+      this.ui.setAudioState({ trackName: this.currentTrackName, usingUpload: false, usingProcedural: false });
+    } else if (this.selectedTrack) {
+      await this.audio.ensureStarted();
+      const state = await this.audio.usePlaylistTrack(this.selectedTrack);
+      this.currentTrackName = state.trackName;
+      this.ui.setAudioState(state);
+    } else {
+      await this.audio.ensureStarted();
+      await this.audio.playTrack();
+    }
+    this.player.activateContinueGuard(3);
+    this.obstacles.clear();
+    this.lastFrame = performance.now();
+    this.sfx.play('guard');
+    this.synth.trigger('guard');
+    this.ui.showGameplay();
+    this.ui.notify('Daily continue used: 3 second guard online.');
+    this.pushHudState();
+  }
+
+  private finalizePendingRun(): void {
+    if (this.pendingFinalScore === undefined || !this.pendingFinalLevel) return;
+    Storage.recordRunProgress(this.pendingFinalLevel.level, this.runSyncOrbs, this.runNearMisses);
+    Storage.setHighScore(this.pendingFinalScore);
+    if (this.pendingFinalScore >= HIGGS_UNLOCK_SCORE) {
       Storage.unlockParticle('higgs');
       this.unlockMessage ||= 'Higgs Boson unlocked: mass-field aura available in particle select.';
     }
     this.highScore = Storage.getHighScore();
-    this.ui.showGameOver(this.score, this.highScore, this.level, this.unlockMessage);
+    this.pendingFinalScore = undefined;
+    this.pendingFinalLevel = undefined;
   }
 
   private resize(): void {

@@ -105,6 +105,16 @@ export class Player {
   activateShield(): void {
     this.shieldTime = this.particle.shieldDuration;
     this.collisionGraceTime = Math.max(this.collisionGraceTime, 0.45);
+    this.ensureShieldMesh();
+  }
+
+  activateContinueGuard(seconds: number): void {
+    this.shieldTime = Math.max(this.shieldTime, seconds);
+    this.collisionGraceTime = Math.max(this.collisionGraceTime, seconds);
+    this.ensureShieldMesh();
+  }
+
+  private ensureShieldMesh(): void {
     if (!this.shield) {
       this.shield = new THREE.Mesh(
         new THREE.IcosahedronGeometry(this.particle.size * 2.8, 2),

@@ -37,6 +37,7 @@ export interface HudState {
 interface UICallbacks {
   onStart: (mode: 'beginning' | 'highest') => void;
   onRestart: () => void;
+  onContinueRun: () => void;
   onPauseToggle: () => void;
   onExitGame: () => void;
   onShowMenu: () => void;
@@ -201,7 +202,7 @@ export class UI {
     this.setText('[data-pause]', state.paused ? 'Resume' : 'Pause');
   }
 
-  showGameOver(finalScore: number, highScore: number, level: LevelConfig, unlockMessage: string): void {
+  showGameOver(finalScore: number, highScore: number, level: LevelConfig, unlockMessage: string, continueAvailable: boolean): void {
     this.hud.classList.add('hidden');
     this.gameOver.className = 'screen game-over-screen';
     this.gameOver.innerHTML = `
@@ -215,12 +216,15 @@ export class UI {
         </div>
         <p class="run-summary">${escapeHtml(this.username)} reached ${Math.floor(finalScore).toLocaleString()}.</p>
         ${unlockMessage ? `<p class="unlock">${unlockMessage}</p>` : ''}
+        ${continueAvailable ? '<p class="guard-note">Daily continue available: revive this run with a short guard window.</p>' : '<p class="muted small">Daily continue already used.</p>'}
         <div class="button-row">
+          ${continueAvailable ? '<button class="primary" data-continue>Use Daily Continue</button>' : ''}
           <button class="primary" data-restart>Restart</button>
           <button class="secondary" data-menu>Change particle / music</button>
         </div>
       </div>
     `;
+    this.gameOver.querySelector('[data-continue]')?.addEventListener('click', this.callbacks.onContinueRun);
     this.gameOver.querySelector('[data-restart]')?.addEventListener('click', this.callbacks.onRestart);
     this.gameOver.querySelector('[data-menu]')?.addEventListener('click', this.callbacks.onShowMenu);
   }

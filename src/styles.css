@@ -87,6 +87,31 @@ body.play-fullscreen .canvas-host canvas {
   display: none;
 }
 
+.game-shell.impact-pulse canvas {
+  animation: mobile-impact-pulse 160ms linear;
+}
+
+@keyframes mobile-impact-pulse {
+  0% {
+    transform: translate3d(0, 0, 0);
+    filter: brightness(1);
+  }
+
+  35% {
+    transform: translate3d(-3px, 1px, 0);
+    filter: brightness(1.45) saturate(1.35);
+  }
+
+  70% {
+    transform: translate3d(3px, -1px, 0);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0);
+    filter: brightness(1);
+  }
+}
+
 .canvas-host canvas {
   display: block;
   width: 100%;

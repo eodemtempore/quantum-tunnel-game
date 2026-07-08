@@ -543,6 +543,16 @@ export class Game {
 
   private haptic(pattern: VibratePattern): void {
     if (!this.settings.hapticsEnabled) return;
-    navigator.vibrate?.(pattern);
+    if (!this.isMobileViewport()) return;
+    this.shell.classList.remove('impact-pulse');
+    void this.shell.offsetWidth;
+    this.shell.classList.add('impact-pulse');
+    const vibrate = navigator.vibrate?.bind(navigator);
+    if (!vibrate) return;
+    const worked = vibrate(pattern);
+    if (!worked && Array.isArray(pattern)) {
+      const fallbackDuration = Math.min(240, pattern.reduce((sum, value) => sum + Number(value || 0), 0));
+      vibrate(fallbackDuration);
+    }
   }
 }

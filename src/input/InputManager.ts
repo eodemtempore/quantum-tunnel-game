@@ -35,10 +35,12 @@ export class InputManager {
   private gamma = 0;
   private calibratedBeta = 0;
   private calibratedGamma = 0;
+  private mobileLike = false;
 
   constructor(container: HTMLElement, options: InputOptions) {
     this.container = container;
     this.options = options;
+    this.mobileLike = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 1;
     this.syncTiltPermissionFlag();
     this.attach();
   }
@@ -68,7 +70,7 @@ export class InputManager {
     }
 
     const keyboardTarget = currentAngle + this.keyboardDirection * dt * 3.4;
-    const tiltTarget = this.options.tiltEnabled ? this.tilt * dt * 5.2 : 0;
+    const tiltTarget = this.options.tiltEnabled && this.mobileLike ? this.tilt * dt * 8.4 : 0;
     this.currentAngle = this.normalizeAngle(keyboardTarget + tiltTarget);
     return this.currentAngle;
   }
@@ -166,10 +168,13 @@ export class InputManager {
       this.alpha = event.alpha ?? 0;
       this.beta = event.beta ?? 0;
       this.gamma = event.gamma ?? 0;
-      const gammaTilt = (this.gamma - this.calibratedGamma) / 18;
-      const betaTilt = (this.beta - this.calibratedBeta) / 26;
-      const dominantTilt = Math.abs(gammaTilt) >= Math.abs(betaTilt) ? gammaTilt : betaTilt;
-      this.tilt = Math.max(-1, Math.min(1, dominantTilt));
+      const orientationAngle = this.getScreenOrientationAngle();
+      const gammaTilt = (this.gamma - this.calibratedGamma) / 13;
+      const betaTilt = (this.beta - this.calibratedBeta) / 16;
+      const landscapeSign = orientationAngle === 90 ? 1 : -1;
+      const rawTilt = Math.abs(orientationAngle) === 90 ? betaTilt * landscapeSign + gammaTilt * 0.25 : gammaTilt;
+      const targetTilt = Math.abs(rawTilt) < 0.035 ? 0 : Math.max(-1, Math.min(1, rawTilt * 1.35));
+      this.tilt = this.tilt * 0.28 + targetTilt * 0.72;
     });
   }
 
@@ -181,6 +186,13 @@ export class InputManager {
 
   private normalizeAngle(angle: number): number {
     return ((angle % TAU) + TAU) % TAU;
+  }
+
+  private getScreenOrientationAngle(): number {
+    const angle = window.screen.orientation?.angle ?? (window.orientation as number | undefined) ?? 0;
+    if (angle === 270) return -90;
+    if (angle === -270) return 90;
+    return Math.round(angle / 90) * 90;
   }
 
   private syncTiltPermissionFlag(): void {

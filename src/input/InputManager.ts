@@ -70,7 +70,7 @@ export class InputManager {
     }
 
     const keyboardTarget = currentAngle + this.keyboardDirection * dt * 3.4;
-    const tiltTarget = this.options.tiltEnabled && this.mobileLike ? this.tilt * dt * 8.4 : 0;
+    const tiltTarget = this.options.tiltEnabled && this.mobileLike ? this.tilt * dt * 12.5 : 0;
     this.currentAngle = this.normalizeAngle(keyboardTarget + tiltTarget);
     return this.currentAngle;
   }
@@ -169,12 +169,12 @@ export class InputManager {
       this.beta = event.beta ?? 0;
       this.gamma = event.gamma ?? 0;
       const orientationAngle = this.getScreenOrientationAngle();
-      const gammaTilt = (this.gamma - this.calibratedGamma) / 13;
-      const betaTilt = (this.beta - this.calibratedBeta) / 16;
+      const gammaTilt = (this.gamma - this.calibratedGamma) / 9;
+      const betaTilt = (this.beta - this.calibratedBeta) / 10;
       const landscapeSign = orientationAngle === 90 ? 1 : -1;
       const rawTilt = Math.abs(orientationAngle) === 90 ? betaTilt * landscapeSign + gammaTilt * 0.25 : gammaTilt;
-      const targetTilt = Math.abs(rawTilt) < 0.035 ? 0 : Math.max(-1, Math.min(1, rawTilt * 1.35));
-      this.tilt = this.tilt * 0.28 + targetTilt * 0.72;
+      const targetTilt = Math.abs(rawTilt) < 0.018 ? 0 : Math.max(-1, Math.min(1, rawTilt * 1.7));
+      this.tilt = this.tilt * 0.18 + targetTilt * 0.82;
     });
   }
 

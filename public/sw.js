@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quantum-tunnel-v14';
+const CACHE_NAME = 'quantum-tunnel-v15';
 const CORE_ASSETS = ['/', '/manifest.json', '/icon.svg'];
 
 self.addEventListener('install', (event) => {

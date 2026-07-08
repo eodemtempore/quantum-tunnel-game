@@ -428,11 +428,27 @@ h2 {
 
 .profile-prompt,
 .profile-card,
-.username-edit {
+.username-edit,
+.synth-panel {
   border: 1px solid rgba(125, 255, 239, 0.26);
   border-radius: 8px;
   padding: 10px;
   background: rgba(0, 16, 20, 0.36);
+}
+
+.synth-panel {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.synth-panel strong {
+  color: #7dffef;
+}
+
+.compact-slider {
+  margin-top: 4px;
+  padding: 7px;
 }
 
 .profile-prompt {

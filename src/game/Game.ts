@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AudioEngine } from '../audio/AudioEngine';
+import { ExperimentalSynth } from '../audio/ExperimentalSynth';
 import { PlaylistEntry, PlaylistManager } from '../audio/PlaylistManager';
 import { InputManager } from '../input/InputManager';
 import { AdminPlaylist } from '../ui/AdminPlaylist';
@@ -34,6 +35,7 @@ export class Game {
   private ui!: UI;
   private admin!: AdminPlaylist;
   private audio = new AudioEngine();
+  private synth = new ExperimentalSynth();
   private playlist = new PlaylistManager();
   private mode: GameMode = 'menu';
   private particle: ParticleDefinition = getParticle('proton');
@@ -55,6 +57,7 @@ export class Game {
   private usernameError = '';
   private runSyncOrbs = 0;
   private runNearMisses = 0;
+  private fpsAverage = 60;
 
   constructor(private root: HTMLElement) {}
 
@@ -108,6 +111,13 @@ export class Game {
       onSetVolume: (volume) => this.updateSettings({ volume }),
       onSetLaneMode: (laneMode) => this.updateSettings({ laneMode }),
       onSetHaptics: (hapticsEnabled) => this.updateSettings({ hapticsEnabled }),
+      onSetExperimentalSynth: (experimentalSynthEnabled) => void this.setExperimentalSynth(experimentalSynthEnabled),
+      onSetUltraVisuals: (ultraVisualsEnabled) => this.updateSettings({ ultraVisualsEnabled }),
+      onSetSynthControl: (key, value) => this.updateSynthControl(key, value),
+      onResetSynthPreset: () => {
+        this.synth.resetPreset();
+        this.ui.notify('Synth preset reset.');
+      },
       onRequestTilt: () => void this.enableTilt(),
       onRecalibrateTilt: () => this.recalibrateTilt(),
       onSetUsername: (username) => this.setUsername(username),
@@ -155,6 +165,7 @@ export class Game {
   private async startRun(): Promise<void> {
     await this.enterPlayLayoutIfMobile();
     await this.audio.ensureStarted();
+    if (this.settings.experimentalSynthEnabled) await this.synth.ensureStarted(this.settings);
     if (this.selectedTrack) {
       const state = await this.audio.usePlaylistTrack(this.selectedTrack);
       this.currentTrackName = state.trackName;
@@ -221,9 +232,26 @@ export class Game {
     Storage.setSettings(this.settings);
     this.audio.setMuted(this.settings.muted);
     this.audio.setVolume(this.settings.volume);
+    this.synth.applySettings(this.settings);
     this.input.setOptions({ laneMode: this.settings.laneMode, tiltEnabled: this.settings.tiltEnabled });
     this.ui.setSettings(this.settings);
     this.renderMenu();
+  }
+
+  private async setExperimentalSynth(enabled: boolean): Promise<void> {
+    this.updateSettings({ experimentalSynthEnabled: enabled });
+    try {
+      await this.synth.setEnabled(enabled, this.settings);
+      this.ui.notify(enabled ? 'Experimental Synth Mode enabled.' : 'Experimental Synth Mode disabled.');
+    } catch {
+      this.updateSettings({ experimentalSynthEnabled: false });
+      this.ui.notify('Synth audio was blocked. Tap the toggle again.');
+    }
+  }
+
+  private updateSynthControl(key: string, value: number): void {
+    if (!key.startsWith('synth')) return;
+    this.updateSettings({ [key]: Math.max(0, Math.min(1, value)) } as Partial<GameSettings>);
   }
 
   private async enableTilt(): Promise<void> {
@@ -356,12 +384,13 @@ export class Game {
     this.animationId = requestAnimationFrame((next) => this.loop(next));
     const dt = Math.min(0.033, Math.max(0.001, (time - this.lastFrame) / 1000 || 0.016));
     this.lastFrame = time;
+    this.fpsAverage = this.fpsAverage * 0.94 + (1 / dt) * 0.06;
 
     const energy = this.audio.getEnergy();
     if (this.mode === 'playing') {
       this.update(dt, energy);
     } else {
-      this.tunnel.update(dt * 0.35, 5, this.level, energy, 0);
+      this.tunnel.update(dt * 0.35, 5, this.level, energy, 0, this.getUltraIntensity() * 0.35);
     }
 
     const circular = !this.settings?.laneMode;
@@ -390,6 +419,7 @@ export class Game {
       this.scene.fog = new THREE.FogExp2(this.level.palette.background, 0.018);
       this.tunnel.setLevel(this.level);
       this.ui.notify(`Level ${this.level.level}: ${this.level.name} - ${this.level.signatureMechanic}`);
+      this.synth.trigger('level');
     }
 
     const speedRatio = Math.min(1.8, this.elapsed / 90);
@@ -398,6 +428,7 @@ export class Game {
     const circular = !this.settings.laneMode;
     const target = circular ? this.input.getTargetAngle(this.player.angle, dt) : this.input.getTargetX(this.player.x, dt);
     this.player.update(dt, target, energy, circular);
+    this.synth.update(dt, this.level, this.speed, this.input.getSteeringAmount(), this.player.hasShield(), this.particle);
 
     const collected = this.collectibles.update(
       dt,
@@ -415,10 +446,12 @@ export class Game {
         this.syncBoostTime = Math.max(this.syncBoostTime, SYNC_BOOST_SECONDS);
         this.glitch = Math.max(this.glitch, 0.65);
         this.haptic([12, 18, 12]);
+        this.synth.trigger('sync');
         this.ui.notify(`Quantum Sync +${SYNC_BONUS_SCORE}: ${SYNC_SCORE_MULTIPLIER.toFixed(1)}x scoring.`);
       } else {
         this.player.activateShield();
         this.haptic([22, 20, 22]);
+        this.synth.trigger('guard');
         this.ui.notify(`Green Guard online: ${Math.round(this.particle.shieldDuration)} seconds.`);
       }
     }
@@ -438,6 +471,7 @@ export class Game {
         this.runNearMisses += 1;
         this.score += 240 * this.particle.scoreMultiplier * this.getSyncMultiplier();
         this.glitch = 1;
+        this.synth.trigger('nearMiss');
       } else if (this.player.consumeShield()) {
         this.obstacles.remove(hit.obstacle);
         this.score += 120;
@@ -448,6 +482,7 @@ export class Game {
         this.score += 60;
       } else {
         this.haptic([80, 40, 120]);
+        this.synth.trigger('collision');
         this.endRun();
         return;
       }
@@ -463,7 +498,7 @@ export class Game {
 
     this.highScore = Math.max(this.highScore, this.score, Storage.getHighScore());
     this.glitch = Math.max(0, this.glitch - dt * 1.9);
-    this.tunnel.update(dt, this.speed, this.level, energy, this.glitch);
+    this.tunnel.update(dt, this.speed, this.level, energy, this.glitch, this.getUltraIntensity());
     this.ui.updateHud({
       score: this.score,
       highScore: this.highScore,
@@ -499,6 +534,12 @@ export class Game {
 
   private getSyncMultiplier(): number {
     return this.syncBoostTime > 0 ? SYNC_SCORE_MULTIPLIER : 1;
+  }
+
+  private getUltraIntensity(): number {
+    if (!this.settings?.ultraVisualsEnabled) return 0;
+    const fpsScale = this.fpsAverage < 36 ? 0.35 : 1;
+    return Math.min(1, (0.32 + this.level.level * 0.018 + this.score / 2_500_000) * fpsScale);
   }
 
   private endRun(): void {

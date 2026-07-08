@@ -70,7 +70,7 @@ export class InputManager {
     }
 
     const keyboardTarget = currentAngle + this.keyboardDirection * dt * 3.4;
-    const tiltTarget = this.options.tiltEnabled && this.mobileLike ? this.tilt * dt * 40 : 0;
+    const tiltTarget = this.options.tiltEnabled && this.mobileLike ? this.tilt * dt * 30 : 0;
     this.currentAngle = this.normalizeAngle(keyboardTarget + tiltTarget);
     return this.currentAngle;
   }
@@ -118,6 +118,12 @@ export class InputManager {
       steering: this.tilt,
       active: this.options.tiltEnabled && this.requestedTilt && this.tiltPermission === 'granted'
     };
+  }
+
+  getSteeringAmount(): number {
+    if (this.pointerActive) return Math.max(-1, Math.min(1, (this.currentAngle - Math.PI * -0.5) / Math.PI));
+    if (this.options.tiltEnabled && this.mobileLike) return this.tilt;
+    return this.keyboardDirection;
   }
 
   private attach(): void {

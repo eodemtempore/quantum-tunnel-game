@@ -72,14 +72,17 @@ export class Tunnel {
     });
   }
 
-  update(dt: number, speed: number, level: LevelConfig, audioEnergy: number, glitch: number): void {
-    this.group.rotation.z += dt * 0.05 * level.speedMultiplier;
+  update(dt: number, speed: number, level: LevelConfig, audioEnergy: number, glitch: number, ultraIntensity = 0): void {
+    const ultraPulse = ultraIntensity * (0.5 + Math.sin(performance.now() * 0.004) * 0.5);
+    this.group.rotation.z += dt * (0.05 * level.speedMultiplier + ultraIntensity * 0.08);
 
     for (const ring of this.rings) {
       ring.position.z += speed * dt;
       if (ring.position.z > 6) ring.position.z -= this.depth;
-      this.setRingOpacity(ring, 0.25 + audioEnergy * 0.38 + glitch * 0.25);
-      ring.scale.setScalar(1 + audioEnergy * 0.04 + Math.sin(performance.now() * 0.002 + ring.position.z) * 0.015);
+      this.setRingOpacity(ring, 0.25 + audioEnergy * (0.38 + ultraIntensity * 0.42) + glitch * 0.25 + ultraPulse * 0.16);
+      ring.scale.setScalar(
+        1 + audioEnergy * (0.04 + ultraIntensity * 0.08) + Math.sin(performance.now() * 0.002 + ring.position.z) * (0.015 + ultraIntensity * 0.035)
+      );
     }
 
     const positions = this.speedLines.geometry.attributes.position as THREE.BufferAttribute;
@@ -97,11 +100,12 @@ export class Tunnel {
       }
     }
     positions.needsUpdate = true;
-    (this.speedLines.material as THREE.LineBasicMaterial).opacity = 0.22 + audioEnergy * 0.34;
+    (this.speedLines.material as THREE.LineBasicMaterial).opacity = 0.22 + audioEnergy * (0.34 + ultraIntensity * 0.34) + ultraPulse * 0.12;
 
     for (const sprite of this.codeSprites) {
-      sprite.position.z += speed * dt * (0.72 + audioEnergy * 0.45);
-      sprite.material.opacity = 0.34 + audioEnergy * 0.45;
+      sprite.position.z += speed * dt * (0.72 + audioEnergy * 0.45 + ultraIntensity * 0.25);
+      sprite.material.opacity = 0.34 + audioEnergy * 0.45 + ultraIntensity * 0.22;
+      sprite.rotation.z += dt * ultraIntensity * 0.9;
       if (sprite.position.z > 5) this.placeSprite(sprite, -this.depth);
     }
   }

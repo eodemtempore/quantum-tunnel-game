@@ -14,6 +14,14 @@ export interface GameSettings {
   laneMode: boolean;
   tiltEnabled: boolean;
   hapticsEnabled: boolean;
+  experimentalSynthEnabled: boolean;
+  ultraVisualsEnabled: boolean;
+  synthMasterVolume: number;
+  synthDroneVolume: number;
+  synthAcidVolume: number;
+  synthTextureVolume: number;
+  synthPercussionVolume: number;
+  synthEffectsAmount: number;
 }
 
 export interface ProfileStats {
@@ -28,7 +36,15 @@ const defaultSettings: GameSettings = {
   volume: 0.72,
   laneMode: false,
   tiltEnabled: false,
-  hapticsEnabled: true
+  hapticsEnabled: true,
+  experimentalSynthEnabled: false,
+  ultraVisualsEnabled: false,
+  synthMasterVolume: 0.55,
+  synthDroneVolume: 0.42,
+  synthAcidVolume: 0.5,
+  synthTextureVolume: 0.38,
+  synthPercussionVolume: 0.46,
+  synthEffectsAmount: 0.45
 };
 
 const defaultProfileStats: ProfileStats = {

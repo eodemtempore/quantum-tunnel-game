@@ -48,6 +48,10 @@ interface UICallbacks {
   onSetVolume: (volume: number) => void;
   onSetLaneMode: (laneMode: boolean) => void;
   onSetHaptics: (enabled: boolean) => void;
+  onSetExperimentalSynth: (enabled: boolean) => void;
+  onSetUltraVisuals: (enabled: boolean) => void;
+  onSetSynthControl: (key: string, value: number) => void;
+  onResetSynthPreset: () => void;
   onRequestTilt: () => void;
   onRecalibrateTilt: () => void;
   onSetUsername: (username: string) => void;
@@ -330,6 +334,18 @@ export class UI {
       const input = event.currentTarget as HTMLInputElement;
       this.callbacks.onSetHaptics(input.checked);
     });
+    this.menu.querySelector<HTMLInputElement>('[data-synth-enabled]')?.addEventListener('change', (event) => {
+      const input = event.currentTarget as HTMLInputElement;
+      this.callbacks.onSetExperimentalSynth(input.checked);
+    });
+    this.menu.querySelector<HTMLInputElement>('[data-ultra-visuals]')?.addEventListener('change', (event) => {
+      const input = event.currentTarget as HTMLInputElement;
+      this.callbacks.onSetUltraVisuals(input.checked);
+    });
+    this.menu.querySelectorAll<HTMLInputElement>('[data-synth-control]').forEach((input) => {
+      input.addEventListener('input', () => this.callbacks.onSetSynthControl(input.dataset.synthControl ?? '', Number(input.value) / 100));
+    });
+    this.menu.querySelector('[data-reset-synth]')?.addEventListener('click', this.callbacks.onResetSynthPreset);
     this.menu.querySelector('[data-tilt]')?.addEventListener('click', this.callbacks.onRequestTilt);
     this.menu.querySelector('[data-recalibrate-tilt]')?.addEventListener('click', this.callbacks.onRecalibrateTilt);
     this.menu.querySelectorAll<HTMLFormElement>('[data-username-form]').forEach((form) => {
@@ -459,6 +475,19 @@ export class UI {
       </div>
       <label class="toggle"><input type="checkbox" data-lane ${this.settings.laneMode ? 'checked' : ''}/> Use 5-lane fallback instead of 360 steering</label>
       <label class="toggle"><input type="checkbox" data-haptics ${this.settings.hapticsEnabled ? 'checked' : ''}/> Haptics on obstacle impact</label>
+      <label class="toggle"><input type="checkbox" data-synth-enabled ${this.settings.experimentalSynthEnabled ? 'checked' : ''}/> Experimental Synth Mode</label>
+      <label class="toggle"><input type="checkbox" data-ultra-visuals ${this.settings.ultraVisualsEnabled ? 'checked' : ''}/> Ultra / Psychedelic Visual Mode</label>
+      <div class="synth-panel">
+        <strong>Experimental Synth Controls</strong>
+        <p class="muted small">Experimental Synth Mode generates audio locally. Route your device/laptop audio output to a mixer or audio interface for live performance.</p>
+        ${this.renderSynthSlider('Master', 'synthMasterVolume')}
+        ${this.renderSynthSlider('Drone', 'synthDroneVolume')}
+        ${this.renderSynthSlider('Acid Bass', 'synthAcidVolume')}
+        ${this.renderSynthSlider('FM Texture', 'synthTextureVolume')}
+        ${this.renderSynthSlider('Perc / Glitch', 'synthPercussionVolume')}
+        ${this.renderSynthSlider('Effects', 'synthEffectsAmount')}
+        <button class="secondary wide" type="button" data-reset-synth>Reset Synth Preset</button>
+      </div>
       <div class="button-row compact">
         <button class="secondary" type="button" data-tilt>${this.settings.tiltEnabled ? 'Disable Tilt' : 'Enable Tilt Steering'}</button>
         <button class="secondary" type="button" data-recalibrate-tilt>Recalibrate Tilt</button>
@@ -477,6 +506,16 @@ export class UI {
     const debug = this.audioDebug;
     if (!debug) return 'Audio: not started yet.';
     return `Audio: ${escapeHtml(debug.contextState)} · media ${debug.hasMediaElement ? 'yes' : 'no'} · buffer ${debug.hasBuffer ? 'yes' : 'no'} · muted ${debug.muted ? 'yes' : 'no'} · volume ${Math.round(debug.volume * 100)}%`;
+  }
+
+  private renderSynthSlider(label: string, key: keyof GameSettings): string {
+    const value = Math.round(Number(this.settings[key]) * 100);
+    return `
+      <label class="slider-row compact-slider">
+        <span>${label} ${value}%</span>
+        <input type="range" min="0" max="100" value="${value}" data-synth-control="${key}" />
+      </label>
+    `;
   }
 
   private renderTiltDebug(): string {

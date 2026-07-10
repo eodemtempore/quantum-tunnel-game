@@ -163,6 +163,86 @@ body.play-fullscreen .canvas-host canvas {
   display: none !important;
 }
 
+.ego-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  overflow: hidden;
+  color: #eafff5;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.96), rgba(0, 18, 12, 0.94), rgba(0, 0, 0, 0.96)),
+    repeating-linear-gradient(90deg, rgba(0, 255, 138, 0.08) 0 1px, transparent 1px 22px);
+  transition: opacity 480ms ease, visibility 480ms ease;
+  pointer-events: none;
+}
+
+.ego-loading.done {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.ego-loading-title {
+  position: relative;
+  z-index: 1;
+  font: 950 clamp(34px, 9vw, 86px) / 0.9 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
+  text-shadow:
+    0 0 18px rgba(0, 255, 138, 0.72),
+    0 0 36px rgba(0, 217, 255, 0.38);
+  animation: ego-title-pulse 900ms ease-in-out infinite alternate;
+}
+
+.ego-loading-subtitle {
+  position: relative;
+  z-index: 1;
+  color: #7dffef;
+  font: 800 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.ego-loading-line {
+  position: absolute;
+  left: -35vw;
+  right: -35vw;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #00ff8a, #00d9ff, #ffd76b, transparent);
+  box-shadow: 0 0 28px rgba(0, 255, 138, 0.8);
+  animation: ego-horizontal-scan 1.2s ease-in-out infinite;
+}
+
+@keyframes ego-horizontal-scan {
+  0% {
+    transform: translateY(-42px) scaleX(0.4);
+    opacity: 0.25;
+  }
+
+  50% {
+    transform: translateY(0) scaleX(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(42px) scaleX(0.4);
+    opacity: 0.25;
+  }
+}
+
+@keyframes ego-title-pulse {
+  from {
+    filter: brightness(0.92);
+  }
+
+  to {
+    filter: brightness(1.25);
+  }
+}
+
 .menu-screen {
   min-height: 100svh;
   min-height: 100dvh;

@@ -8,7 +8,19 @@ if (!app) {
 }
 
 const game = new Game(app);
+const splash = document.createElement('div');
+splash.className = 'ego-loading';
+splash.innerHTML = `
+  <div class="ego-loading-line"></div>
+  <div class="ego-loading-title">EGO GAMES</div>
+  <div class="ego-loading-subtitle">quantum tunnel systems online</div>
+`;
+app.append(splash);
 game.boot();
+window.setTimeout(() => {
+  splash.classList.add('done');
+  window.setTimeout(() => splash.remove(), 520);
+}, 1800);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

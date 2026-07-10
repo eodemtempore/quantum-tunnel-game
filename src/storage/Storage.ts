@@ -8,6 +8,8 @@ const SETTINGS_KEY = 'qt.settings';
 const USERNAME_KEY = 'qt.username';
 const PROFILE_STATS_KEY = 'qt.profileStats';
 const DAILY_CONTINUE_KEY = 'qt.dailyContinueDate';
+const SELECTED_PARTICLE_KEY = 'qt.selectedParticle';
+const SELECTED_TRACK_KEY = 'qt.selectedTrack';
 
 export interface GameSettings {
   muted: boolean;
@@ -103,6 +105,23 @@ export const Storage = {
 
   skipUsername(): void {
     localStorage.setItem(USERNAME_KEY, 'Quantum Racer');
+  },
+
+  getSelectedParticle(): ParticleId {
+    const stored = localStorage.getItem(SELECTED_PARTICLE_KEY) as ParticleId | null;
+    return stored && ['proton', 'electron', 'neutron', 'higgs'].includes(stored) ? stored : 'proton';
+  },
+
+  setSelectedParticle(id: ParticleId): void {
+    localStorage.setItem(SELECTED_PARTICLE_KEY, id);
+  },
+
+  getSelectedTrackId(): string {
+    return localStorage.getItem(SELECTED_TRACK_KEY) || 'default-track';
+  },
+
+  setSelectedTrackId(id: string): void {
+    localStorage.setItem(SELECTED_TRACK_KEY, id);
   },
 
   getHighScore(): number {

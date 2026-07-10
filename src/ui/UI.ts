@@ -117,7 +117,6 @@ export class UI {
     this.gameOver.className = 'screen hidden';
     this.menu.innerHTML = `
       <div class="hero-panel">
-        <button class="gear" data-admin aria-label="Admin playlist">⚙</button>
         <div class="science-rain" aria-hidden="true">
           <span>ψ ∂ψ/∂t ℏ ∇² Ψ 101101 ΔxΔp ≥ ℏ/2</span>
           <span>E=mc² λ=h/p 010011 Φ Ω μ ν τ</span>

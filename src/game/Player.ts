@@ -10,6 +10,7 @@ export class Player {
   private shield?: THREE.Mesh;
   private shieldTime = 0;
   private collisionGraceTime = 0;
+  private sizeScale = 1;
   x = 0;
   angle = Math.PI * -0.5;
   readonly ringRadius = 2.12;
@@ -49,9 +50,19 @@ export class Player {
     (this.core.material as THREE.MeshBasicMaterial).color.set(particle.glow);
     (this.halo.material as THREE.MeshBasicMaterial).color.set(particle.secondaryGlow);
     (this.trail.material as THREE.PointsMaterial).color.set(particle.glow);
-    const scale = particle.size / 0.34;
-    this.core.scale.setScalar(scale);
-    this.halo.scale.setScalar(scale);
+    this.applySizeScale();
+  }
+
+  setSizeScale(scale: number): void {
+    this.sizeScale = scale;
+    this.applySizeScale();
+  }
+
+  private applySizeScale(): void {
+    const visualScale = (this.particle.size / 0.34) * this.sizeScale;
+    this.core.scale.setScalar(visualScale);
+    this.halo.scale.setScalar(visualScale);
+    if (this.shield) this.shield.scale.setScalar(this.sizeScale);
   }
 
   update(dt: number, target: number, audioEnergy: number, circular = true): void {
@@ -126,6 +137,7 @@ export class Player {
           blending: THREE.AdditiveBlending
         })
       );
+      this.shield.scale.setScalar(this.sizeScale);
       this.group.add(this.shield);
     }
   }
@@ -154,7 +166,7 @@ export class Player {
   }
 
   getHitbox(): number {
-    return this.particle.hitbox;
+    return this.particle.hitbox * this.sizeScale;
   }
 
   private lerpAngle(current: number, target: number, alpha: number): number {

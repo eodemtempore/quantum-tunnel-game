@@ -70,6 +70,8 @@ export class Game {
   boot(): void {
     this.highScore = Storage.getHighScore();
     this.username = Storage.getUsername();
+    const savedParticle = Storage.getSelectedParticle();
+    if (Storage.getUnlockedParticles().includes(savedParticle)) this.particle = getParticle(savedParticle);
     this.shell = document.createElement('div');
     this.shell.className = 'game-shell';
     this.canvasHost = document.createElement('div');
@@ -151,7 +153,9 @@ export class Game {
       () => this.mode === 'menu' && this.renderMenu()
     );
 
-    this.selectedTrack = this.playlist.getDefaultPlaylist()[0];
+    const savedTrackId = Storage.getSelectedTrackId();
+    this.selectedTrack = this.playlist.getPublicPlaylist().find((track) => track.id === savedTrackId) ?? this.playlist.getDefaultPlaylist()[0];
+    this.ui.setSelectedParticle(this.particle.id);
     this.ui.setSelectedTrack(this.selectedTrack.id);
     this.renderMenu();
     this.resize();
@@ -222,12 +226,14 @@ export class Game {
     this.obstacles.clear();
     this.collectibles.clear();
     this.player.setParticle(this.particle);
+    this.applyPlayerLevelScale();
     this.ui.showGameplay();
   }
 
   private selectParticle(id: ParticleId): void {
     if (!Storage.getUnlockedParticles().includes(id)) return;
     this.particle = getParticle(id);
+    Storage.setSelectedParticle(id);
     this.ui.setSelectedParticle(id);
     this.renderMenu();
   }
@@ -236,6 +242,7 @@ export class Game {
     const track = this.playlist.getPublicPlaylist().find((entry) => entry.id === id);
     if (!track) return;
     this.selectedTrack = track;
+    Storage.setSelectedTrackId(id);
     this.ui.setSelectedTrack(id);
     if (this.settings.experimentalSynthEnabled) {
       this.audio.stopTrack(true);
@@ -255,6 +262,7 @@ export class Game {
     if (this.settings.experimentalSynthEnabled) {
       this.audio.stopTrack(true);
       this.selectedTrack = undefined;
+      Storage.setSelectedTrackId('');
       this.currentTrackName = file.name;
       this.ui.setSelectedTrack('');
       this.ui.setAudioState({ trackName: file.name, usingUpload: true, usingProcedural: false });
@@ -264,6 +272,7 @@ export class Game {
     }
     const state = await this.audio.useUpload(file);
     this.selectedTrack = undefined;
+    Storage.setSelectedTrackId('');
     this.currentTrackName = state.trackName;
     this.ui.setSelectedTrack('');
     this.ui.setAudioState(state);
@@ -278,6 +287,7 @@ export class Game {
       return;
     }
     this.selectedTrack = undefined;
+    Storage.setSelectedTrackId('');
     this.currentTrackName = 'Procedural Soundtrack';
     this.ui.setSelectedTrack('');
     this.ui.setAudioState(this.audio.useProcedural());
@@ -497,6 +507,7 @@ export class Game {
       this.scene.fog = new THREE.FogExp2(this.level.palette.background, 0.018);
       this.tunnel.setLevel(this.level);
       this.obstacles.setUltraMode(this.settings.ultraVisualsEnabled, this.isDarkTripLevel());
+      this.applyPlayerLevelScale();
       this.ui.notify(`Level ${this.level.level}: ${this.level.name} - ${this.level.signatureMechanic}`);
       this.synth.trigger('level');
     }
@@ -625,6 +636,10 @@ export class Game {
     if (!this.settings?.ultraVisualsEnabled) return 0;
     const fpsScale = this.fpsAverage < 36 ? 0.35 : 1;
     return Math.min(1, (0.32 + this.level.level * 0.018 + this.score / 2_500_000) * fpsScale);
+  }
+
+  private applyPlayerLevelScale(): void {
+    this.player.setSizeScale(this.level.level > 17 ? 0.85 : 1);
   }
 
   private isDarkTripLevel(): boolean {

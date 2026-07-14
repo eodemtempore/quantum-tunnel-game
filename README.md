@@ -1,6 +1,42 @@
-# Quantum Tunnel
+# Quantum Tunnel — audio-reactive browser game
 
-Quantum Tunnel is a mobile-first browser game built with Vite, TypeScript, Three.js, and the Web Audio API. You race as a subatomic particle through an endless cyberpunk quantum tunnel with procedural music, uploaded-track audio reactivity, collectibles, shields, near-miss scoring, local high scores, and a local prototype admin playlist.
+Quantum Tunnel is a mobile-first browser game built with Vite, TypeScript, Three.js, and the Web Audio API. You race as a subatomic particle through an endless cyberpunk quantum tunnel with procedural music, uploaded-track audio reactivity, collectibles, shields, near-miss scoring, and local high scores. This is a game project and is unrelated to Cloudflare Tunnel.
+
+![Quantum Tunnel preview](docs/quantum-tunnel-preview.svg)
+
+## Gameplay overview
+
+Survive an accelerating tunnel, steer around obstacles, collect power-ups, protect your run with shields, and build a score across authored stages before the endless Quantum Drift mode takes over. The soundtrack is generated in the browser and the tunnel reacts to analyser energy.
+
+## Controls
+
+- Desktop: Arrow keys or A/D to steer; keyboard start and pause controls are shown in-game.
+- Mobile: drag steering and swipe lane changes when five-lane mode is enabled.
+- Optional tilt steering is available only after explicit browser permission.
+
+## Architecture
+
+```mermaid
+flowchart LR
+  UI[Game UI] --> Loop[Game loop]
+  Loop --> World[Tunnel, obstacles, collectibles]
+  Loop --> Audio[Web Audio analyser]
+  Audio --> Visuals[Reactive visuals]
+  Input[Keyboard, touch, tilt] --> Loop
+  Storage[Local browser storage] --> Scores[Local scores and settings]
+```
+
+## Technology stack
+
+TypeScript · Vite · Three.js · Web Audio API · responsive browser APIs · localStorage
+
+## My role
+
+Game concept, interaction design, procedural gameplay systems, audio-reactive visual direction, mobile controls, technical architecture, and implementation.
+
+## Demo
+
+No hosted public demo is currently configured. Run the local build using the commands below.
 
 ## Install
 

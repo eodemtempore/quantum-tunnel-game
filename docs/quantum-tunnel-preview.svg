@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Quantum Tunnel preview</title>
+  <desc id="desc">A sanitized neon tunnel gameplay preview illustration.</desc>
+  <defs>
+    <radialGradient id="bg"><stop stop-color="#20204d"/><stop offset="1" stop-color="#070812"/></radialGradient>
+    <linearGradient id="tunnel" x1="0" x2="1"><stop stop-color="#5ee7ff" stop-opacity=".15"/><stop offset=".5" stop-color="#d24dff" stop-opacity=".8"/><stop offset="1" stop-color="#5ee7ff" stop-opacity=".15"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g fill="none" stroke="url(#tunnel)" stroke-width="5" opacity=".9">
+    <path d="M80 80 Q600 250 1120 80"/><path d="M30 160 Q600 300 1170 160"/><path d="M0 260 Q600 350 1200 260"/><path d="M0 370 Q600 370 1200 370"/><path d="M30 480 Q600 410 1170 480"/><path d="M80 560 Q600 460 1120 560"/>
+  </g>
+  <g fill="#ffd166"><circle cx="600" cy="300" r="10"/><circle cx="420" cy="390" r="6"/><circle cx="790" cy="220" r="7"/></g>
+  <path d="M600 250 l28 48 -28 48 -28-48z" fill="#fff" stroke="#5ee7ff" stroke-width="5"/>
+  <text x="64" y="92" fill="#fff" font-family="system-ui,sans-serif" font-size="42" font-weight="800">QUANTUM TUNNEL</text>
+  <text x="66" y="132" fill="#9ca3af" font-family="monospace" font-size="18">AUDIO-REACTIVE BROWSER GAME · GAME PROJECT</text>
+  <text x="66" y="584" fill="#5ee7ff" font-family="monospace" font-size="16">THREE.JS / WEB AUDIO / TYPESCRIPT</text>
+</svg>

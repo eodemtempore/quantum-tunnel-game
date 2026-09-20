@@ -36,7 +36,7 @@ Game concept, interaction design, procedural gameplay systems, audio-reactive vi
 
 ## Demo
 
-No hosted public demo is currently configured. Run the local build using the commands below.
+https://eodemtempore.github.io/quantum-tunnel-game/
 
 ## Install
 

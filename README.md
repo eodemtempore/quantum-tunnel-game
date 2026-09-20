@@ -74,10 +74,6 @@ npm run build
 npm run preview
 ```
 
-## Controls
-
-Mobile supports drag steering and swipe lane changes when 5-lane mode is enabled. Desktop supports Arrow keys and A/D. Optional tilt steering is available from Settings and only activates after explicit permission.
-
 ## Music
 
 The game starts with a procedural electronic soundtrack using Web Audio oscillators, noise hats, bass, synth arps, and glitch effects. The tunnel reacts to analyser energy.

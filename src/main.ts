@@ -1,4 +1,5 @@
 import { Game } from './game/Game';
+import { InstallExperience } from './install';
 import './styles.css';
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -8,6 +9,7 @@ if (!app) {
 }
 
 const game = new Game(app);
+new InstallExperience();
 const splash = document.createElement('div');
 splash.className = 'ego-loading';
 splash.innerHTML = `
@@ -22,7 +24,7 @@ window.setTimeout(() => {
   window.setTimeout(() => splash.remove(), 520);
 }, 1800);
 
-if ('serviceWorker' in navigator) {
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch((error) => {
       console.info('Service worker registration skipped:', error);

@@ -163,10 +163,13 @@ Higgs Boson is locked at the start. Reach 50,000 points in a run or hold a high 
 
 ## Add To iPhone Home Screen
 
-1. Open the deployed URL or local network URL in Safari.
-2. Tap Share.
-3. Tap `Add to Home Screen`.
-4. Launch from the home screen for a fullscreen PWA-style experience.
+Open the deployed HTTPS game URL and tap **Get game** on the start screen.
+
+- On iPhone or iPad, open the page in Safari, tap Share, then **Add to Home Screen**.
+- On Android, tap **Get game** to accept the browser install prompt. If no prompt appears, use Chrome's menu and choose **Install app** or **Add to Home screen**.
+- On a supported desktop browser, use **Get game** or the install control in the address bar.
+
+Launch Quantum Tunnel from its home-screen icon for a full-screen experience. Once installation finishes, the game and its built-in soundtrack are cached for offline play. Browser storage keeps high scores and settings on each device; they do not sync between devices.
 
 ## Project Structure
 

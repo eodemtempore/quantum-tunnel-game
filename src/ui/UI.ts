@@ -142,6 +142,14 @@ export class UI {
           <span>Higgs unlocks at ${HIGGS_UNLOCK_SCORE.toLocaleString()} · After Level 30: Quantum Drift endless mode</span>
         </div>
         ${this.renderStartButtons()}
+        <div class="install-card">
+          <img src="${import.meta.env.BASE_URL}icon-192.png" width="52" height="52" alt="" />
+          <div class="install-copy">
+            <strong>Take the tunnel with you</strong>
+            <span>Free · Full-screen play · Home-screen icon</span>
+          </div>
+          <button class="install-button" type="button" data-install>Get game</button>
+        </div>
       </div>
       <section class="menu-section cockpit-panel">
         <div class="tab-row" role="tablist" aria-label="Game setup">

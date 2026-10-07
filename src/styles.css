@@ -386,10 +386,6 @@ body.ultra-visuals .hud-bottom {
   box-shadow: 0 0 12px rgba(0, 255, 138, 0.12);
 }
 
-.hero-panel > .eyebrow {
-  z-index: 3;
-}
-
 .gear,
 .icon-button {
   position: absolute;
@@ -1200,6 +1196,21 @@ body.ultra-visuals.dark-trip .hud-bottom {
 
   .result-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 739px) {
+  .hero-panel {
+    align-content: start;
+  }
+
+  .equation-strip {
+    position: relative;
+    top: auto;
+    right: auto;
+    left: auto;
+    width: 100%;
+    margin-bottom: 12px;
   }
 }
 

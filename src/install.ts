@@ -80,7 +80,7 @@ export class InstallExperience {
       <div class="install-dialog-panel" tabindex="-1">
         <button class="install-dialog-close" type="button" data-install-close aria-label="Close install instructions">×</button>
         <p class="eyebrow">Free home-screen game</p>
-        <h2 id="install-dialog-title">Install Quantum Tunnel</h2>
+        <h2 id="install-dialog-title">Save to Home Screen</h2>
         <p>Launch it from your home screen in full screen, like an app.</p>
         <ol>${instructions}</ol>
         <p class="muted small">No store account or payment is needed.</p>

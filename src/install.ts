@@ -73,7 +73,7 @@ export class InstallExperience {
       ? '<li>Open this page in Browser.</li><li>Tap the Share button.</li><li>Choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</li>'
       : isAndroid
         ? '<li>Open this page in Chrome.</li><li>Open the browser menu (⋮).</li><li>Choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>'
-        : '<li>Open this page in a browser that supports app installation, such as Chrome or Edge.</li><li>Use the install icon in the address bar or the browser menu.</li>';
+        : '<li>Open this page in Chrome or Edge.</li><li>Click the install icon in the address bar. If it is not visible, open the browser menu and choose <strong>Install Quantum Tunnel</strong>.</li>';
 
     this.returnFocus = button;
     this.dialog.innerHTML = `

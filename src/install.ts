@@ -70,10 +70,10 @@ export class InstallExperience {
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isAndroid = /Android/i.test(navigator.userAgent);
     const instructions = isAppleMobile
-      ? '<li>Open this page in Browser.</li><li>Tap the Share button.</li><li>Choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</li>'
+      ? '<li>Open this page in Safari or Chrome.</li><li>Tap <strong>Share</strong>, then choose <strong>Add to Home Screen</strong>.</li><li>Tap <strong>Add</strong> to save it.</li>'
       : isAndroid
-        ? '<li>Open this page in Chrome.</li><li>Open the browser menu (⋮).</li><li>Choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>'
-        : '<li>Open this page in Chrome or Edge.</li><li>Click the install icon in the address bar. If it is not visible, open the browser menu and choose <strong>Install Quantum Tunnel</strong>.</li>';
+        ? '<li>Open this page in Chrome or Opera.</li><li>Open the browser menu.</li><li>Choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>'
+        : '<li>Open this page in Safari, Chrome, or Opera.</li><li>In Safari on Mac, choose <strong>File</strong> &gt; <strong>Add to Dock</strong>. In Chrome, open <strong>More</strong> &gt; <strong>Cast, save, and share</strong> &gt; <strong>Install page as app</strong>.</li>';
 
     this.returnFocus = button;
     this.dialog.innerHTML = `

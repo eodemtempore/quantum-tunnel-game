@@ -562,6 +562,12 @@ body.ultra-visuals .primary {
   background: rgba(0, 217, 255, 0.22);
 }
 
+@media (min-width: 740px) and (hover: hover) and (pointer: fine) {
+  .install-card {
+    display: none;
+  }
+}
+
 .install-dialog {
   position: fixed;
   inset: 0;

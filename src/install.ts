@@ -73,7 +73,7 @@ export class InstallExperience {
       ? '<li>Open this page in Safari or Chrome.</li><li>Tap <strong>Share</strong>, then choose <strong>Add to Home Screen</strong>.</li><li>Tap <strong>Add</strong> to save it.</li>'
       : isAndroid
         ? '<li>Open this page in Chrome or Opera.</li><li>Open the browser menu.</li><li>Choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>'
-        : '<li>Open this page in Safari, Chrome, or Opera.</li><li>In Safari on Mac, choose <strong>File</strong> &gt; <strong>Add to Dock</strong>. In Chrome, open <strong>More</strong> &gt; <strong>Cast, save, and share</strong> &gt; <strong>Install page as app</strong>.</li>';
+        : '<li>On iPhone or iPad, open this page in Safari or Chrome. On Android, open it in Chrome or Opera.</li><li>On iPhone or iPad, tap <strong>Share</strong> and choose <strong>Add to Home Screen</strong>. On Android, open the browser menu and choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>';
 
     this.returnFocus = button;
     this.dialog.innerHTML = `

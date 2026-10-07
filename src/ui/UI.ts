@@ -131,7 +131,6 @@ export class UI {
           <span>ΔEΔt</span>
           <span>E=mc²</span>
         </div>
-        <p class="eyebrow">near-light particle racing</p>
         <h1>Quantum Tunnel</h1>
         <p class="subtitle">Race as a subatomic particle through a collapsing neon quantum field.</p>
         <div class="score-strip">

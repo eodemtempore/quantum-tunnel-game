@@ -364,6 +364,7 @@ body.ultra-visuals .hud-bottom {
 
 .equation-strip {
   position: absolute;
+  z-index: 2;
   top: 12px;
   left: 12px;
   right: 64px;
@@ -381,7 +382,7 @@ body.ultra-visuals .hud-bottom {
   border: 1px solid rgba(125, 255, 239, 0.28);
   border-radius: 6px;
   padding: 5px 7px;
-  background: rgba(0, 12, 9, 0.58);
+  background: rgba(0, 12, 9, 0.94);
   box-shadow: 0 0 12px rgba(0, 255, 138, 0.12);
 }
 

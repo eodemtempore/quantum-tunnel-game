@@ -386,6 +386,10 @@ body.ultra-visuals .hud-bottom {
   box-shadow: 0 0 12px rgba(0, 255, 138, 0.12);
 }
 
+.hero-panel > .eyebrow {
+  z-index: 3;
+}
+
 .gear,
 .icon-button {
   position: absolute;

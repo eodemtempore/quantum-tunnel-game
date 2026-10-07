@@ -70,7 +70,7 @@ export class InstallExperience {
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isAndroid = /Android/i.test(navigator.userAgent);
     const instructions = isAppleMobile
-      ? '<li>Open this page in Safari.</li><li>Tap the Share button.</li><li>Choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</li>'
+      ? '<li>Open this page in your browser.</li><li>Tap the Share button.</li><li>Choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</li>'
       : isAndroid
         ? '<li>Open this page in Chrome.</li><li>Open the browser menu (⋮).</li><li>Choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>'
         : '<li>Open this page in a browser that supports app installation, such as Chrome or Edge.</li><li>Use the install icon in the address bar or the browser menu.</li>';

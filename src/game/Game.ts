@@ -16,7 +16,7 @@ import { Tunnel } from './Tunnel';
 import { getStageForScore, LEVELS, LevelConfig, QUANTUM_DRIFT_LEVEL } from './levels/LevelConfig';
 
 type GameMode = 'menu' | 'playing' | 'paused' | 'over';
-type StartMode = 'beginning' | 'highest';
+type StartMode = 'beginning' | 'highest' | 'current';
 const SYNC_BONUS_SCORE = 500;
 const SYNC_BOOST_SECONDS = 6;
 const SYNC_SCORE_MULTIPLIER = 1.5;
@@ -60,6 +60,7 @@ export class Game {
   private usernameError = '';
   private runSyncOrbs = 0;
   private runNearMisses = 0;
+  private nearMissStreak = 0;
   private fpsAverage = 60;
   private runProgressOffset = 0;
   private pendingFinalScore?: number;
@@ -98,6 +99,7 @@ export class Game {
     this.scene.add(this.tunnel.group, this.obstacles.group, this.collectibles.group, this.player.group);
 
     this.settings = Storage.getSettings();
+    void this.synth.setEnabled(this.settings.experimentalSynthEnabled, this.settings);
     this.syncVisualModeClass();
     this.audio.setMuted(this.settings.muted);
     this.audio.setVolume(this.settings.volume);
@@ -113,6 +115,11 @@ export class Game {
       onRestart: () => {
         this.finalizePendingRun();
         void this.startRun('beginning');
+      },
+      onRestartAtLevel: () => {
+        const restartLevel = this.pendingFinalLevel ?? this.level;
+        this.finalizePendingRun();
+        void this.startRun('current', restartLevel);
       },
       onContinueRun: () => void this.continueRun(),
       onPauseToggle: () => this.togglePause(),
@@ -184,11 +191,12 @@ export class Game {
     this.ui.renderMenu(Storage.getUnlockedParticles(), this.playlist.getPublicPlaylist(), this.highScore);
   }
 
-  private async startRun(startMode: StartMode = 'beginning'): Promise<void> {
+  private async startRun(startMode: StartMode = 'beginning', requestedLevel?: LevelConfig): Promise<void> {
     await this.enterPlayLayoutIfMobile();
     await this.sfx.ensureStarted();
     if (this.settings.experimentalSynthEnabled) {
       this.audio.stopTrack(true);
+      this.synth.beginRun(this.particle.id);
       await this.synth.ensureStarted(this.settings);
       this.currentTrackName = 'Experimental Synth Mode';
       this.ui.setAudioState({ trackName: this.currentTrackName, usingUpload: false, usingProcedural: false });
@@ -203,8 +211,12 @@ export class Game {
       await this.audio.ensureStarted();
       await this.audio.playTrack();
     }
-    const startLevel = startMode === 'highest' ? this.getHighestSavedLevel() : LEVELS[0];
-    this.runProgressOffset = startMode === 'highest' ? this.getLevelRequiredScore(startLevel) : 0;
+    const startLevel = startMode === 'current' && requestedLevel
+      ? requestedLevel
+      : startMode === 'highest'
+        ? this.getHighestSavedLevel()
+        : LEVELS[0];
+    this.runProgressOffset = startMode === 'beginning' ? 0 : this.getLevelRequiredScore(startLevel);
     this.pendingFinalScore = undefined;
     this.pendingFinalLevel = undefined;
     this.score = 0;
@@ -213,6 +225,7 @@ export class Game {
     this.syncBoostTime = 0;
     this.runSyncOrbs = 0;
     this.runNearMisses = 0;
+    this.nearMissStreak = 0;
     this.mode = 'playing';
     this.unlockMessage = '';
     this.higgsAnnounced = Storage.getUnlockedParticles().includes('higgs');
@@ -473,7 +486,7 @@ export class Game {
     this.lastFrame = time;
     this.fpsAverage = this.fpsAverage * 0.94 + (1 / dt) * 0.06;
 
-    const energy = this.audio.getEnergy();
+    const energy = this.settings.experimentalSynthEnabled ? this.synth.getEnergy() : this.audio.getEnergy();
     if (this.mode === 'playing') {
       this.update(dt, energy);
     } else {
@@ -498,6 +511,7 @@ export class Game {
 
   private update(dt: number, energy: number): void {
     this.elapsed += dt;
+    this.nearMissStreak = Math.max(0, this.nearMissStreak - dt * 0.16);
     this.syncBoostTime = Math.max(0, this.syncBoostTime - dt);
     const nextLevel = getStageForScore(this.score + this.runProgressOffset);
     if (nextLevel.level !== this.level.level || nextLevel.name !== this.level.name) {
@@ -518,7 +532,16 @@ export class Game {
     const circular = !this.settings.laneMode;
     const target = circular ? this.input.getTargetAngle(this.player.angle, dt) : this.input.getTargetX(this.player.x, dt);
     this.player.update(dt, target, energy, circular);
-    this.synth.update(dt, this.level, this.speed, this.input.getSteeringAmount(), this.player.hasShield(), this.particle);
+    this.synth.update({
+      level: this.level.level,
+      speedRatio: Math.min(1.5, this.speed / 60),
+      steering: this.input.getSteeringAmount(),
+      shieldActive: this.player.hasShield(),
+      syncActive: this.syncBoostTime > 0,
+      nearMissStreak: this.nearMissStreak,
+      particleId: this.particle.id,
+      danger: Math.min(1, this.level.obstacleDensity * 0.38 + Math.min(1, this.speed / 70) * 0.3 + this.nearMissStreak * 0.05)
+    }, dt);
 
     const collected = this.collectibles.update(
       dt,
@@ -531,6 +554,7 @@ export class Game {
     );
     for (const item of collected) {
       if (item === 'sync') {
+        this.nearMissStreak = 0;
         this.runSyncOrbs += 1;
         this.score += SYNC_BONUS_SCORE * this.particle.scoreMultiplier;
         this.syncBoostTime = Math.max(this.syncBoostTime, SYNC_BOOST_SECONDS);
@@ -540,6 +564,7 @@ export class Game {
         this.synth.trigger('sync');
         this.ui.notify(`Quantum Sync +${SYNC_BONUS_SCORE}: ${SYNC_SCORE_MULTIPLIER.toFixed(1)}x scoring.`);
       } else {
+        this.nearMissStreak = 0;
         this.player.activateShield();
         this.haptic([22, 20, 22]);
         this.sfx.play('guard');
@@ -560,6 +585,7 @@ export class Game {
     );
     for (const hit of hits) {
       if (hit.type === 'nearMiss') {
+        this.nearMissStreak += 1;
         this.runNearMisses += 1;
         this.score += 240 * this.particle.scoreMultiplier * this.getSyncMultiplier();
         this.glitch = 1;
@@ -681,7 +707,7 @@ export class Game {
     this.mode = 'over';
     this.audio.stopTrack(true);
     this.sfx.play('gameOver');
-    this.synth.stopPlayback();
+    this.synth.stopPlayback({ fadeSeconds: 0.52, preserveVoices: true });
     this.pendingFinalScore = this.score;
     this.pendingFinalLevel = this.level;
     const continueAvailable = !Storage.hasUsedDailyContinue();

@@ -675,6 +675,9 @@ body.is-installed .install-card {
   min-height: 40px;
   min-width: 0;
   padding: 0 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
   color: #bfffea;
   background: rgba(0, 10, 8, 0.72);
   font-size: 12px;
@@ -1057,6 +1060,10 @@ body.is-installed .install-card {
   place-items: center;
 }
 
+.game-over-screen {
+  align-content: start;
+}
+
 .game-over-panel,
 .admin-panel {
   width: min(100%, 720px);
@@ -1217,6 +1224,52 @@ body.ultra-visuals.dark-trip .hud-bottom {
     left: auto;
     width: 100%;
     margin-bottom: 12px;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 739px) {
+  .menu-screen {
+    grid-template-rows: auto auto;
+    align-content: start;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  .hero-panel,
+  .cockpit-panel,
+  .tab-panel,
+  .particle-grid,
+  .music-grid {
+    min-width: 0;
+  }
+
+  .cockpit-panel {
+    min-height: max-content;
+    grid-template-rows: auto auto;
+  }
+
+  .tab-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tab-button {
+    min-height: 42px;
+    padding: 4px 5px;
+    font-size: clamp(10px, 3.1vw, 12px);
+  }
+
+  .particle-card,
+  .music-card {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .game-over-screen {
+    place-items: start center;
+  }
+
+  .game-over-panel {
+    margin: auto 0;
   }
 }
 

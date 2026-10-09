@@ -37,6 +37,7 @@ export interface HudState {
 interface UICallbacks {
   onStart: (mode: 'beginning' | 'highest') => void;
   onRestart: () => void;
+  onRestartAtLevel: () => void;
   onContinueRun: () => void;
   onPauseToggle: () => void;
   onExitGame: () => void;
@@ -225,13 +226,15 @@ export class UI {
         ${continueAvailable ? '<p class="guard-note">Daily continue available: revive this run with a short guard window.</p>' : '<p class="muted small">Daily continue already used.</p>'}
         <div class="button-row">
           ${continueAvailable ? '<button class="primary" data-continue>Use Daily Continue</button>' : ''}
-          <button class="primary" data-restart>Restart</button>
-          <button class="secondary" data-menu>Change particle / music</button>
+          <button class="primary" data-restart-level>Restart at Level ${level.level}</button>
+          <button class="secondary" data-restart>Restart from Beginning</button>
+          <button class="secondary" data-menu>Exit</button>
         </div>
       </div>
     `;
     this.gameOver.querySelector('[data-continue]')?.addEventListener('click', this.callbacks.onContinueRun);
     this.gameOver.querySelector('[data-restart]')?.addEventListener('click', this.callbacks.onRestart);
+    this.gameOver.querySelector('[data-restart-level]')?.addEventListener('click', this.callbacks.onRestartAtLevel);
     this.gameOver.querySelector('[data-menu]')?.addEventListener('click', this.callbacks.onShowMenu);
   }
 

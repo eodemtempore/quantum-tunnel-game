@@ -27,12 +27,26 @@ export interface GameSettings {
   synthEffectsAmount: number;
 }
 
+export type SynthControlSettings = Pick<GameSettings,
+  'synthMasterVolume' | 'synthDroneVolume' | 'synthAcidVolume' |
+  'synthTextureVolume' | 'synthPercussionVolume' | 'synthEffectsAmount'
+>;
+
 export interface ProfileStats {
   highestLevel: number;
   totalSyncOrbs: number;
   totalNearMisses: number;
   highScoreName: string;
 }
+
+const defaultSynthControls: SynthControlSettings = {
+  synthMasterVolume: 0.55,
+  synthDroneVolume: 0.42,
+  synthAcidVolume: 0.5,
+  synthTextureVolume: 0.38,
+  synthPercussionVolume: 0.46,
+  synthEffectsAmount: 0.45
+};
 
 const defaultSettings: GameSettings = {
   muted: false,
@@ -42,12 +56,7 @@ const defaultSettings: GameSettings = {
   hapticsEnabled: true,
   experimentalSynthEnabled: false,
   ultraVisualsEnabled: false,
-  synthMasterVolume: 0.55,
-  synthDroneVolume: 0.42,
-  synthAcidVolume: 0.5,
-  synthTextureVolume: 0.38,
-  synthPercussionVolume: 0.46,
-  synthEffectsAmount: 0.45
+  ...defaultSynthControls
 };
 
 const defaultProfileStats: ProfileStats = {
@@ -157,6 +166,10 @@ export const Storage = {
 
   getSettings(): GameSettings {
     return { ...defaultSettings, ...readJson<GameSettings>(SETTINGS_KEY, defaultSettings) };
+  },
+
+  getDefaultSynthControls(): SynthControlSettings {
+    return { ...defaultSynthControls };
   },
 
   setSettings(settings: GameSettings): void {

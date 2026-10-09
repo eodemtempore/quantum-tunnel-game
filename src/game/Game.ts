@@ -141,8 +141,9 @@ export class Game {
       onSetUltraVisuals: (ultraVisualsEnabled) => this.updateSettings({ ultraVisualsEnabled }),
       onSetSynthControl: (key, value) => this.updateSynthControl(key, value),
       onResetSynthPreset: () => {
+        this.updateSettings(Storage.getDefaultSynthControls());
         this.synth.resetPreset();
-        this.ui.notify('Synth preset reset.');
+        this.ui.notify('Synth preset and controls reset.');
       },
       onRequestTilt: () => void this.enableTilt(),
       onRecalibrateTilt: () => this.recalibrateTilt(),

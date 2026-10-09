@@ -71,9 +71,9 @@ export class MusicDirector {
     this.eventTension *= Math.exp(-Math.max(0, dt) * 0.16);
     this.variation *= Math.exp(-Math.max(0, dt) * 0.25);
 
-    const intensityTempo = this.energy * 12 + this.tension * 3;
+    const intensityTempo = this.energy * 4 + this.tension * 2;
     this.bpm += (this.baseBpm + intensityTempo - this.bpm) * Math.min(1, Math.max(0, dt) * 0.12);
-    this.bpm = Math.max(92, Math.min(136, this.bpm));
+    this.bpm = Math.max(136, Math.min(144, this.bpm));
   }
 
   onBar(bar: number): MusicalState {

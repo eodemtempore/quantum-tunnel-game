@@ -38,7 +38,8 @@ export class SynthVoices {
       perc: this.createChannel(master, delay, 'lowpass'),
       fx: this.createChannel(master, delay, 'lowpass')
     };
-    this.channels.bass.filter.frequency.value = 420;
+    this.channels.bass.filter.frequency.value = 780;
+    this.channels.bass.filter.Q.value = 1.65;
     this.channels.lead.filter.frequency.value = 3_600;
     this.channels.pad.filter.frequency.value = 1_300;
     this.channels.perc.filter.frequency.value = 12_000;
@@ -48,11 +49,11 @@ export class SynthVoices {
 
   applySettings(settings: GameSettings): void {
     const now = this.context.currentTime;
-    this.channels.pad.gain.gain.setTargetAtTime(settings.synthDroneVolume * 0.34, now, 0.08);
-    this.channels.bass.gain.gain.setTargetAtTime(settings.synthAcidVolume * 0.32, now, 0.05);
-    this.channels.lead.gain.gain.setTargetAtTime(settings.synthTextureVolume * 0.24, now, 0.05);
-    this.channels.fx.gain.gain.setTargetAtTime(settings.synthTextureVolume * 0.18, now, 0.05);
-    this.channels.perc.gain.gain.setTargetAtTime(settings.synthPercussionVolume * 0.36, now, 0.05);
+    this.channels.pad.gain.gain.setTargetAtTime(settings.synthDroneVolume * 0.28, now, 0.08);
+    this.channels.bass.gain.gain.setTargetAtTime(settings.synthAcidVolume * 0.68, now, 0.05);
+    this.channels.lead.gain.gain.setTargetAtTime(settings.synthTextureVolume * 0.42, now, 0.05);
+    this.channels.fx.gain.gain.setTargetAtTime(settings.synthTextureVolume * 0.2, now, 0.05);
+    this.channels.perc.gain.gain.setTargetAtTime(settings.synthPercussionVolume * 0.92, now, 0.05);
     const effects = Math.max(0, Math.min(1, settings.synthEffectsAmount));
     this.delayFeedback.gain.setTargetAtTime(0.08 + effects * 0.24, now, 0.08);
     for (const channel of Object.values(this.channels)) {
@@ -67,7 +68,7 @@ export class SynthVoices {
     this.channels.lead.filter.frequency.setTargetAtTime((1_000 + speedRatio * 1_450 + energy * 1_050 + steeringAmount * 850) * characterBrightness, time, 0.09);
     this.channels.lead.filter.Q.setTargetAtTime(0.7 + tension * 3.2 + steeringAmount * 1.6, time, 0.12);
     this.channels.lead.panner.pan.setTargetAtTime(Math.max(-0.42, Math.min(0.42, steering * 0.28)), time, 0.12);
-    this.channels.bass.filter.frequency.setTargetAtTime(300 + energy * 160 + (shieldActive ? 80 : 0), time, 0.12);
+    this.channels.bass.filter.frequency.setTargetAtTime(620 + energy * 420 + (shieldActive ? 100 : 0), time, 0.12);
     this.channels.pad.filter.frequency.setTargetAtTime((800 + energy * 650 + (shieldActive ? 380 : 0)) * (particleId === 'neutron' ? 0.75 : 1), time, 0.2);
     this.channels.pad.panner.pan.setTargetAtTime(Math.max(-0.34, Math.min(0.34, steering * 0.18)), time, 0.2);
     this.channels.fx.filter.frequency.setTargetAtTime(1_200 + energy * 2_500, time, 0.14);
@@ -100,7 +101,7 @@ export class SynthVoices {
     const body = this.context.createOscillator();
     const sub = this.context.createOscillator();
     const subGain = this.context.createGain();
-    body.type = particleId === 'electron' ? 'sawtooth' : 'triangle';
+    body.type = particleId === 'neutron' ? 'triangle' : 'sawtooth';
     body.frequency.setValueAtTime(frequency, time);
     sub.type = 'sine';
     sub.frequency.setValueAtTime(frequency * 0.5, time);
@@ -119,10 +120,12 @@ export class SynthVoices {
     const envelope = this.context.createGain();
     const notePan = this.context.createStereoPanner();
     const filter = this.context.createBiquadFilter();
-    carrier.type = particleId === 'electron' ? 'sawtooth' : particleId === 'higgs' ? 'triangle' : 'square';
+    carrier.type = particleId === 'neutron' ? 'triangle' : 'sawtooth';
     carrier.frequency.setValueAtTime(frequency, time);
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(particleId === 'neutron' ? 1_500 : 5_600, time);
+    filter.frequency.setValueAtTime(particleId === 'neutron' ? 1_800 : 1_650, time);
+    filter.frequency.exponentialRampToValueAtTime(particleId === 'neutron' ? 3_400 : 7_200, time + Math.min(0.09, duration * 0.72));
+    filter.Q.setValueAtTime(particleId === 'neutron' ? 1.1 : 5.2, time);
     notePan.pan.setValueAtTime(Math.max(-0.8, Math.min(0.8, pan)), time);
     this.envelope(envelope, time, 0.014, velocity * 0.62, duration, 0.12);
     carrier.connect(envelope);

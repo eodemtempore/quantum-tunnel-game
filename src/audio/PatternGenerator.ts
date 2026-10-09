@@ -58,7 +58,8 @@ export class PatternGenerator {
     if (section === 'intro' || section === 'breath') return;
 
     const family = this.identity.rhythmFamily;
-    const kickOnBeat = section === 'groove' ? step === 0 || step === 8 : step % 4 === 0;
+    // Psytrance foundation: four-on-the-floor kicks in every active section.
+    const kickOnBeat = step % 4 === 0;
     const syncKick = section === 'peak' && (step === 6 || (family === 2 && step === 14));
     const fillKick = (section === 'build' || section === 'peak') && family === 1 && step === 12;
     if (kickOnBeat || syncKick || fillKick) {
@@ -107,14 +108,17 @@ export class PatternGenerator {
     const requestedTone = bassPattern[step];
     if (requestedTone === null || (isNeutron && step % 8 !== 0)) return;
 
-    const chordTone = (requestedTone + motifTone + variation.rotation) % 3;
+    // Keep the bass anchored to the chord root, with an occasional fifth as a
+    // phrase accent. This preserves the rolling pulse instead of sounding like
+    // a wandering melodic bass line.
+    const chordTone = requestedTone === 2 || (motifTone === 3 && step === 14 && position.bar % 4 === 3) ? 2 : 0;
     const octave = isNeutron ? -2 : -1;
     const midi = Math.max(34, scaleDegreeMidi(this.identity.tonicMidi, this.identity.scale, chordDegree + chordTone * 2) + octave * 12 + (variation.octave > 0 && position.bar % 4 === 3 ? 12 : 0));
     events.push({
       type: 'bass',
       midi,
-      velocity: section === 'peak' ? 0.66 : section === 'build' ? 0.57 : 0.48,
-      duration: step % 4 === 0 ? 0.2 : 0.13
+      velocity: section === 'peak' ? 0.82 : section === 'build' ? 0.74 : 0.68,
+      duration: 0.135
     });
   }
 
@@ -150,14 +154,16 @@ export class PatternGenerator {
     const midi = chordTones[toneIndex] + (octave + octaveDisplacement) * 12;
     const weakSixteenth = step % 4 !== 0;
     const chance = weakSixteenth
-      ? Math.max(0.06, (state.density - 0.34) * 0.7)
-      : Math.min(0.98, 0.48 + state.density * 0.52);
+      ? state.section === 'peak'
+        ? isElectron || isHiggs ? 0.9 : 0.72
+        : state.section === 'build' ? 0.48 : Math.max(0.08, (state.density - 0.34) * 0.7)
+      : Math.min(0.98, 0.76 + state.density * 0.24);
     const stableIndex = position.step + position.bar * 17;
     if (hashChance(this.identity.seed ^ (phraseIndex * 0x45d9f3b), stableIndex) > chance) return;
     if (hashChance(this.identity.seed ^ 0x3c6ef372, stableIndex + 91) < variation.omitProbability && step !== 0) return;
 
     const phraseFill = position.bar % 4 === 3 && step >= 12;
-    const velocity = state.section === 'peak' ? 0.52 : state.section === 'build' ? 0.42 : state.section === 'intro' ? 0.27 : 0.32;
+    const velocity = state.section === 'peak' ? 0.78 : state.section === 'build' ? 0.64 : state.section === 'intro' ? 0.38 : 0.52;
     events.push({
       type: 'lead',
       midi,
@@ -169,15 +175,19 @@ export class PatternGenerator {
 
   private getBassPattern(section: MusicalSection): Array<number | null> {
     const family = this.identity.rhythmFamily;
-    const patterns: Array<Array<number | null>> = [
-      [0, null, null, null, 1, null, 2, null, 0, null, null, 2, 1, null, 2, null],
-      [0, null, null, 2, null, null, 1, null, 0, null, 2, null, 1, null, null, 2],
-      [0, null, 2, null, 1, null, null, 2, 0, null, 1, null, 2, null, 1, null],
-      [0, null, null, 1, 2, null, 1, null, 0, null, null, 2, 1, null, 2, null]
+    const offbeatTones: Array<[number, number, number, number]> = [
+      [0, 0, 2, 0],
+      [0, 2, 0, 2],
+      [0, 0, 0, 2],
+      [0, 2, 2, 0]
     ];
-    const pattern = patterns[family];
-    if (section === 'groove') {
-      return pattern.map((tone, step) => step % 4 === 0 || step === 6 || step === 14 ? tone : null);
+    const pattern: Array<number | null> = Array(16).fill(null);
+    for (let offbeat = 0; offbeat < 4; offbeat += 1) {
+      pattern[offbeat * 4 + 2] = offbeatTones[family][offbeat];
+    }
+    if (section === 'build' || section === 'peak') {
+      // A deterministic sixteenth pickup at the end of selected bars.
+      pattern[15] = family % 2 === 0 ? 0 : null;
     }
     return pattern;
   }

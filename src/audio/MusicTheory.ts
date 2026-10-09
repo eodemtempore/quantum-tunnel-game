@@ -68,7 +68,7 @@ export function createMusicIdentity(seed: number, particleId: ParticleId): Music
     tonicMidi: 45 + Math.floor(random() * 12),
     scale,
     progression,
-    bpm: 100 + Math.floor(random() * 17),
+    bpm: 138 + Math.floor(random() * 5),
     bassMotif,
     arpMotif,
     rhythmFamily: Math.floor(random() * 4),

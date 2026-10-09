@@ -1227,12 +1227,20 @@ body.ultra-visuals.dark-trip .hud-bottom {
   }
 }
 
-@media (orientation: portrait) and (max-width: 739px) {
+@media (orientation: portrait) and (max-width: 900px) {
   .menu-screen {
-    grid-template-rows: auto auto;
-    align-content: start;
+    display: block;
+    height: 100%;
+    min-height: 100%;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+    overflow-x: hidden;
+  }
+
+  .menu-screen > .hero-panel,
+  .menu-screen > .cockpit-panel {
+    width: 100%;
+    margin: 0 0 10px;
   }
 
   .hero-panel,
@@ -1244,8 +1252,20 @@ body.ultra-visuals.dark-trip .hud-bottom {
   }
 
   .cockpit-panel {
-    min-height: max-content;
-    grid-template-rows: auto auto;
+    display: block;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .tab-panel {
+    height: auto;
+    overflow: visible;
+  }
+
+  .menu-screen :is(h1, h2, h3, p, span, strong, small, label, button) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   .tab-row {

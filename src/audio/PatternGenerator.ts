@@ -159,16 +159,22 @@ export class PatternGenerator {
     const motifValue = this.identity.arpMotif[variation.reverse ? this.identity.arpMotif.length - 1 - motifIndex : motifIndex];
     const chordTones = chordMidiNotes(this.identity, chordDegree, 0, isHiggs);
     const toneIndex = (motifValue + variation.rotation) % chordTones.length;
-    const octave = isNeutron ? 1 : state.section === 'peak' || isElectron ? 2 : 1;
+    const steeringShift = state.steering < -0.38 ? -1 : state.steering > 0.38 ? 1 : 0;
+    const performedTone = (toneIndex + steeringShift + chordTones.length) % chordTones.length;
+    const octave = isNeutron ? 0 : state.section === 'peak' || isElectron ? 1 : 0;
     const octaveDisplacement = variation.octave && position.bar % 4 === 3 ? 1 : 0;
-    const midi = chordTones[toneIndex] + (octave + octaveDisplacement) * 12;
+    const stableIndex = position.step + position.bar * 17;
+    const tensionNote = state.tension > 0.46 && hashChance(this.identity.seed ^ 0x51ed270b, stableIndex + 17) < state.tension * 0.3;
+    const noteMidi = tensionNote
+      ? scaleDegreeMidi(this.identity.tonicMidi, this.identity.scale, chordDegree + 1)
+      : chordTones[performedTone];
+    const midi = noteMidi + (octave + octaveDisplacement) * 12;
     const weakSixteenth = step % 4 !== 0;
     const chance = weakSixteenth
       ? state.section === 'peak'
         ? isElectron || isHiggs ? 0.9 : 0.72
         : state.section === 'build' ? 0.48 : Math.max(0.08, (state.density - 0.34) * 0.7)
       : Math.min(0.98, 0.76 + state.density * 0.24);
-    const stableIndex = position.step + position.bar * 17;
     if (hashChance(this.identity.seed ^ (phraseIndex * 0x45d9f3b), stableIndex) > chance) return;
     if (hashChance(this.identity.seed ^ 0x3c6ef372, stableIndex + 91) < variation.omitProbability && step !== 0) return;
 

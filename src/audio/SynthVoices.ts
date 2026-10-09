@@ -78,14 +78,20 @@ export class SynthVoices {
   updatePerformance(performance: VoicePerformance): void {
     const { time, speedRatio, steering, energy, tension, shieldActive, particleId } = performance;
     const steeringAmount = Math.abs(steering);
-    const characterBrightness = particleId === 'electron' ? 1.22 : particleId === 'neutron' ? 0.72 : particleId === 'higgs' ? 1.12 : 1;
-    this.channels.lead.filter.frequency.setTargetAtTime((1_000 + speedRatio * 1_450 + energy * 1_050 + steeringAmount * 850) * characterBrightness, time, 0.09);
-    this.channels.lead.filter.Q.setTargetAtTime(0.7 + tension * 3.2 + steeringAmount * 1.6, time, 0.12);
-    this.channels.lead.panner.pan.setTargetAtTime(Math.max(-0.42, Math.min(0.42, steering * 0.28)), time, 0.12);
-    this.channels.bass.filter.frequency.setTargetAtTime(720 + energy * 440 + (shieldActive ? 120 : 0), time, 0.12);
-    this.channels.pad.filter.frequency.setTargetAtTime((800 + energy * 650 + (shieldActive ? 380 : 0)) * (particleId === 'neutron' ? 0.75 : 1), time, 0.2);
-    this.channels.pad.panner.pan.setTargetAtTime(Math.max(-0.34, Math.min(0.34, steering * 0.18)), time, 0.2);
-    this.channels.fx.filter.frequency.setTargetAtTime(1_200 + energy * 2_500, time, 0.14);
+    const characterBrightness = particleId === 'electron' ? 1.08 : particleId === 'neutron' ? 0.78 : particleId === 'higgs' ? 1.02 : 0.94;
+    // The wheel is a playable control: left closes and darkens the acid filter;
+    // right opens it into a resonant scream. Steering also shifts the phrase's
+    // selected chord tone and sweeps the stereo field.
+    const leadCutoff = Math.max(320, Math.min(9_000,
+      (1_050 + speedRatio * 550 + energy * 650 + steering * 3_900) * characterBrightness
+    ));
+    this.channels.lead.filter.frequency.setTargetAtTime(leadCutoff, time, 0.075);
+    this.channels.lead.filter.Q.setTargetAtTime(2.2 + tension * 3.4 + steeringAmount * 8.4, time, 0.08);
+    this.channels.lead.panner.pan.setTargetAtTime(Math.max(-0.88, Math.min(0.88, steering * 0.82)), time, 0.09);
+    this.channels.bass.filter.frequency.setTargetAtTime(600 + energy * 300 + steering * 90 + (shieldActive ? 70 : 0), time, 0.12);
+    this.channels.pad.filter.frequency.setTargetAtTime((650 + energy * 420 + steering * 300 + (shieldActive ? 260 : 0)) * (particleId === 'neutron' ? 0.8 : 1), time, 0.2);
+    this.channels.pad.panner.pan.setTargetAtTime(Math.max(-0.52, Math.min(0.52, steering * 0.48)), time, 0.16);
+    this.channels.fx.filter.frequency.setTargetAtTime(Math.max(250, Math.min(12_000, 700 + energy * 1_800 + steering * 3_200)), time, 0.1);
   }
 
   playKick(time: number, velocity: number): void {
@@ -230,10 +236,10 @@ export class SynthVoices {
     const envelope = this.context.createGain();
     const pan = this.context.createStereoPanner();
     source.buffer = this.noiseBuffer;
-    filter.type = 'highpass';
-    filter.Q.setValueAtTime(1.4, time);
-    filter.frequency.setValueAtTime(280, time);
-    filter.frequency.exponentialRampToValueAtTime(11_000, time + duration);
+    filter.type = 'bandpass';
+    filter.Q.setValueAtTime(3.2, time);
+    filter.frequency.setValueAtTime(180, time);
+    filter.frequency.exponentialRampToValueAtTime(3_200, time + duration);
     pan.pan.setValueAtTime(-0.62, time);
     pan.pan.linearRampToValueAtTime(0.62, time + duration);
     envelope.gain.setValueAtTime(0.0001, time);

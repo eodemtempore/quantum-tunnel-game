@@ -22,10 +22,10 @@ export const SCALE_INTERVALS: Record<ScaleName, number[]> = {
 };
 
 const PROGRESSIONS: number[][] = [
-  [0, 5, 2, 6],
-  [0, 3, 5, 4],
-  [0, 6, 3, 2],
-  [0, 4, 0, 5]
+  [0, 3, 0, 4],
+  [0, 0, 3, 4],
+  [0, 3, 4, 3],
+  [0, 4, 0, 3]
 ];
 
 export function seededRandom(seed: number): () => number {
@@ -52,12 +52,12 @@ export function hashChance(seed: number, index: number): number {
 export function createMusicIdentity(seed: number, particleId: ParticleId): MusicIdentity {
   const random = seededRandom(seed);
   const scaleChoices: ScaleName[] = particleId === 'electron'
-    ? ['naturalMinor', 'dorian', 'dorian']
+    ? ['phrygian', 'naturalMinor', 'phrygian']
     : particleId === 'neutron'
-      ? ['naturalMinor', 'minorPentatonic', 'minorPentatonic']
+      ? ['naturalMinor', 'phrygian', 'naturalMinor']
       : particleId === 'higgs'
-        ? ['dorian', 'phrygian', 'naturalMinor']
-        : ['naturalMinor', 'dorian', 'phrygian'];
+        ? ['phrygian', 'naturalMinor', 'phrygian']
+        : ['naturalMinor', 'phrygian', 'phrygian'];
   const scale = scaleChoices[Math.floor(random() * scaleChoices.length)];
   const progression = [...PROGRESSIONS[Math.floor(random() * PROGRESSIONS.length)]];
   const bassMotif = Array.from({ length: 8 }, () => Math.floor(random() * 4));

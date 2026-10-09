@@ -121,9 +121,17 @@ export class InputManager {
   }
 
   getSteeringAmount(): number {
-    if (this.pointerActive) return Math.max(-1, Math.min(1, (this.currentAngle - Math.PI * -0.5) / Math.PI));
+    if (this.options.laneMode) return (this.laneIndex - 2) / 2;
     if (this.options.tiltEnabled && this.mobileLike) return this.tilt;
-    return this.keyboardDirection;
+
+    // currentAngle wraps to [0, 2π); subtracting the center angle directly
+    // made steering read as almost always +1. Measure the shortest signed
+    // angle from the centered lane so left and right remain distinct.
+    const fromCenter = Math.atan2(
+      Math.sin(this.currentAngle + Math.PI / 2),
+      Math.cos(this.currentAngle + Math.PI / 2)
+    );
+    return Math.max(-1, Math.min(1, fromCenter / 1.15));
   }
 
   private attach(): void {

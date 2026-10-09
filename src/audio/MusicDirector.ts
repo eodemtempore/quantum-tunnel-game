@@ -21,6 +21,7 @@ export interface MusicalState {
   variation: number;
   shieldActive: boolean;
   particleId: ParticleId;
+  steering: number;
 }
 
 export class MusicDirector {
@@ -110,7 +111,8 @@ export class MusicDirector {
       section: this.section,
       variation: this.variation,
       shieldActive: this.gameState.shieldActive,
-      particleId: this.gameState.particleId
+      particleId: this.gameState.particleId,
+      steering: this.gameState.steering
     };
   }
 

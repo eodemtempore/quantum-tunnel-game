@@ -157,8 +157,14 @@ export class ExperimentalSynth {
   }
 
   resetPreset(): void {
+    const resumePlayback = this.running && !!this.context && this.context.state === 'running';
     this.beginRun(this.currentParticle);
     if (this.settings) this.applySettings(this.settings);
+    // beginRun resets the transport. Restart its lookahead scheduler if the
+    // player reset the preset while already in a run.
+    if (resumePlayback && this.context && this.identity) {
+      this.transport.start(this.context, (time, position) => this.scheduleStep(time, position), this.identity.bpm);
+    }
   }
 
   stop(): void {
@@ -249,7 +255,7 @@ export class ExperimentalSynth {
     else if (event.type === 'hat') this.voices.playHat(time, event.velocity);
     else if (event.type === 'snare') this.voices.playSnare(time, event.velocity);
     else if (event.type === 'bass') this.voices.playBass(event.midi, time, event.duration, event.velocity, state.particleId);
-    else if (event.type === 'acid') this.voices.playAcid(event.midi, time, event.duration, event.velocity, event.pan, event.accent);
+    else if (event.type === 'acid') this.voices.playAcid(event.midi, time, event.duration, event.velocity, event.pan, event.accent, state.particleId);
     else if (event.type === 'pad') this.voices.playPad(event.notes, time, event.duration, event.velocity, state.particleId);
     else this.voices.playPsyRiser(time, event.duration, event.velocity);
   }

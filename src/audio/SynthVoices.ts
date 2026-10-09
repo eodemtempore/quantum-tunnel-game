@@ -134,13 +134,15 @@ export class SynthVoices {
     this.startSources([body, sub], time, duration + 0.06, [envelope, subGain]);
   }
 
-  playAcid(midi: number, time: number, duration: number, velocity: number, pan: number, accent: boolean): void {
+  playAcid(midi: number, time: number, duration: number, velocity: number, pan: number, accent: boolean, particleId: ParticleId): void {
     const frequency = midiToFrequency(midi);
     const oscillator = this.context.createOscillator();
+    const modulator = this.context.createOscillator();
+    const modDepth = this.context.createGain();
     const filter = this.context.createBiquadFilter();
     const envelope = this.context.createGain();
     const notePan = this.context.createStereoPanner();
-    oscillator.type = 'sawtooth';
+    oscillator.type = particleId === 'neutron' ? 'triangle' : 'sawtooth';
     const glides = this.lastAcidTime >= 0 && time - this.lastAcidTime < 0.32;
     oscillator.frequency.setValueAtTime(glides ? this.lastAcidFrequency : frequency, time);
     if (glides) oscillator.frequency.exponentialRampToValueAtTime(frequency, time + 0.035);
@@ -148,17 +150,28 @@ export class SynthVoices {
     this.lastAcidTime = time;
 
     filter.type = 'lowpass';
-    filter.Q.setValueAtTime(accent ? 12 : 8, time);
-    filter.frequency.setValueAtTime(accent ? 2_600 : 1_700, time);
-    filter.frequency.exponentialRampToValueAtTime(accent ? 8_800 : 5_400, time + 0.022);
-    filter.frequency.exponentialRampToValueAtTime(accent ? 1_850 : 1_150, time + Math.max(0.07, duration));
+    const brightness = particleId === 'electron' ? 1.16 : particleId === 'neutron' ? 0.68 : particleId === 'higgs' ? 1.08 : 0.92;
+    filter.Q.setValueAtTime((accent ? 11 : 7) * (particleId === 'electron' ? 1.12 : 1), time);
+    filter.frequency.setValueAtTime((accent ? 2_250 : 1_500) * brightness, time);
+    filter.frequency.exponentialRampToValueAtTime((accent ? 7_200 : 4_800) * brightness, time + 0.022);
+    filter.frequency.exponentialRampToValueAtTime((accent ? 1_650 : 980) * brightness, time + Math.max(0.07, duration));
     notePan.pan.setValueAtTime(Math.max(-0.72, Math.min(0.72, pan)), time);
     this.envelope(envelope, time, 0.003, velocity * (accent ? 0.72 : 0.54), duration, 0.045);
     oscillator.connect(filter);
+    // A compact, per-note FM operator adds the metallic, animated edge of a
+    // modern wavetable/FM psy lead while keeping the native Web Audio graph.
+    const fmRatio = particleId === 'higgs' ? 3.01 : particleId === 'electron' ? 2.01 : 1.5;
+    modulator.type = 'sine';
+    modulator.frequency.setValueAtTime(frequency * fmRatio, time);
+    const fmIndex = particleId === 'electron' ? 0.82 : particleId === 'higgs' ? 0.68 : particleId === 'neutron' ? 0.3 : 0.58;
+    modDepth.gain.setValueAtTime(frequency * fmIndex, time);
+    modDepth.gain.exponentialRampToValueAtTime(Math.max(1, frequency * fmIndex * 0.12), time + Math.max(0.055, duration * 0.72));
+    modulator.connect(modDepth);
+    modDepth.connect(oscillator.frequency);
     filter.connect(envelope);
     envelope.connect(notePan);
     notePan.connect(this.acidShaper);
-    this.startSources([oscillator], time, duration + 0.07, [filter, envelope, notePan]);
+    this.startSources([oscillator, modulator], time, duration + 0.07, [filter, envelope, notePan, modDepth]);
   }
 
   playLead(midi: number, time: number, duration: number, velocity: number, pan: number, particleId: ParticleId): void {

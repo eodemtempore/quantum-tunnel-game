@@ -13,6 +13,7 @@ export interface MusicalGameState {
 }
 
 export interface MusicalState {
+  level: number;
   bpm: number;
   energy: number;
   tension: number;
@@ -104,6 +105,7 @@ export class MusicDirector {
     const sectionPressure = this.section === 'build' || this.section === 'peak' ? this.tension * 0.12 : 0;
 
     return {
+      level: this.gameState.level,
       bpm: this.bpm,
       energy: Math.max(0.08, Math.min(1, this.energy - shieldSoftening)),
       tension: this.tension,

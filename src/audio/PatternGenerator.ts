@@ -30,6 +30,7 @@ export class PatternGenerator {
     const isElectron = state.particleId === 'electron';
     const isNeutron = state.particleId === 'neutron';
     const isHiggs = state.particleId === 'higgs';
+    const levelStage = Math.min(3, Math.max(0, Math.floor(state.level) - 1));
 
     if (stepInBar === 0) {
       const eightBarLift = position.bar > 0 && position.bar % 8 === 0;
@@ -48,9 +49,9 @@ export class PatternGenerator {
       events.push({ type: 'riser', velocity: state.section === 'peak' ? 0.7 : 0.48, duration: 0.48 });
     }
 
-    this.addPercussion(events, stepInBar, position.bar, state.section, state.particleId);
+    this.addPercussion(events, stepInBar, position.bar, state.section, state.particleId, levelStage);
     this.addBass(events, position, chordDegree, variation, state.section, isNeutron);
-    this.addLead(events, position, chordDegree, variation, state, isElectron, isNeutron, isHiggs);
+    this.addLead(events, position, chordDegree, variation, state, isElectron, isNeutron, isHiggs, levelStage);
     return events;
   }
 
@@ -62,14 +63,14 @@ export class PatternGenerator {
     return scaleDegreeMidi(this.identity.tonicMidi, this.identity.scale, degree) + octaveOffset * 12;
   }
 
-  private addPercussion(events: PatternEvent[], step: number, bar: number, section: MusicalSection, particleId: string): void {
+  private addPercussion(events: PatternEvent[], step: number, bar: number, section: MusicalSection, particleId: string, levelStage: number): void {
     if (section === 'breath') return;
 
     const family = this.identity.rhythmFamily;
     // Psytrance foundation: four-on-the-floor kicks in every active section.
     const kickOnBeat = step % 4 === 0;
-    const syncKick = section === 'peak' && (step === 6 || (family === 2 && step === 14));
-    const fillKick = (section === 'build' || section === 'peak') && family === 1 && step === 12;
+    const syncKick = section === 'peak' && (step === 6 || (family === 2 && step === 14) || (particleId === 'electron' && levelStage >= 2 && step === 10));
+    const fillKick = (section === 'build' || section === 'peak') && (family === 1 || (particleId === 'higgs' && levelStage >= 3)) && step === 12;
     if (kickOnBeat || syncKick || fillKick) {
       events.push({ type: 'kick', velocity: step === 0 ? 0.96 : 0.78 });
     }
@@ -88,7 +89,9 @@ export class PatternGenerator {
     const hatOn = section === 'intro'
       ? step === 14
       : isNeutron
-      ? step === 2 || step === 10 || (section === 'peak' && step === 6)
+      ? step === 2 || step === 10 || (section === 'peak' && step === 6 && levelStage >= 1)
+      : particleId === 'higgs'
+      ? step === 2 || step === 6 || step === 10 || step === 14 || (section === 'peak' && step % 2 === 1 && levelStage >= 3)
       : section === 'peak'
         ? true
       : section === 'build'
@@ -99,6 +102,10 @@ export class PatternGenerator {
       const accented = step % 4 === 0;
       const fillBoost = step === 14 && bar % 4 === 3 ? 0.12 : 0;
       events.push({ type: 'hat', velocity: (accented ? 0.3 : 0.2) + fillBoost });
+    }
+    const levelGhostHat = levelStage >= 1 && (section === 'peak' || (levelStage >= 2 && section === 'build')) && [3, 7, 11, 15].includes(step);
+    if (levelGhostHat && !hatOn && !electronGhostHat) {
+      events.push({ type: 'hat', velocity: 0.11 + levelStage * 0.025 });
     }
   }
 
@@ -140,13 +147,14 @@ export class PatternGenerator {
     state: MusicalState,
     isElectron: boolean,
     isNeutron: boolean,
-    isHiggs: boolean
+    isHiggs: boolean,
+    levelStage: number
   ): void {
     const step = position.step % 16;
     const spacing = state.section === 'intro' || state.section === 'breath'
       ? 8
       : state.section === 'peak'
-        ? (isElectron || isHiggs ? 1 : 2)
+        ? (isElectron || (isHiggs && levelStage >= 2) ? 1 : 2)
       : state.section === 'build'
         ? 2
         : state.section === 'groove' && isElectron
@@ -161,8 +169,8 @@ export class PatternGenerator {
     const toneIndex = (motifValue + variation.rotation) % chordTones.length;
     const steeringShift = state.steering < -0.38 ? -1 : state.steering > 0.38 ? 1 : 0;
     const performedTone = (toneIndex + steeringShift + chordTones.length) % chordTones.length;
-    const octave = isNeutron ? 0 : state.section === 'peak' || isElectron ? 1 : 0;
-    const octaveDisplacement = variation.octave && position.bar % 4 === 3 ? 1 : 0;
+    const octave = isNeutron ? (state.section === 'peak' ? 0 : -1) : state.section === 'peak' || isElectron || (isHiggs && levelStage >= 1) ? 1 : 0;
+    const octaveDisplacement = (variation.octave || (levelStage >= 2 && position.bar % 4 === 3)) && position.bar % 4 === 3 ? 1 : 0;
     const stableIndex = position.step + position.bar * 17;
     const tensionNote = state.tension > 0.46 && hashChance(this.identity.seed ^ 0x51ed270b, stableIndex + 17) < state.tension * 0.3;
     const noteMidi = tensionNote
@@ -170,11 +178,12 @@ export class PatternGenerator {
       : chordTones[performedTone];
     const midi = noteMidi + (octave + octaveDisplacement) * 12;
     const weakSixteenth = step % 4 !== 0;
+    const levelDensity = levelStage * 0.045;
     const chance = weakSixteenth
       ? state.section === 'peak'
         ? isElectron || isHiggs ? 0.9 : 0.72
-        : state.section === 'build' ? 0.48 : Math.max(0.08, (state.density - 0.34) * 0.7)
-      : Math.min(0.98, 0.76 + state.density * 0.24);
+        : state.section === 'build' ? 0.48 + levelDensity : Math.max(0.08, (state.density - 0.34) * 0.7 + levelDensity)
+      : Math.min(0.98, 0.76 + state.density * 0.24 + levelDensity);
     if (hashChance(this.identity.seed ^ (phraseIndex * 0x45d9f3b), stableIndex) > chance) return;
     if (hashChance(this.identity.seed ^ 0x3c6ef372, stableIndex + 91) < variation.omitProbability && step !== 0) return;
 
@@ -184,8 +193,8 @@ export class PatternGenerator {
       type: 'acid',
       midi,
       velocity: velocity + (phraseFill ? 0.08 : 0) + state.variation * 0.06,
-      duration: state.section === 'peak' ? 0.13 : 0.2,
-      pan: (hashChance(this.identity.seed, stableIndex + 401) - 0.5) * (isHiggs ? 0.62 : 0.38),
+      duration: state.section === 'peak' ? (isElectron ? 0.105 : 0.13) : 0.2,
+      pan: (hashChance(this.identity.seed, stableIndex + 401) - 0.5) * (isHiggs ? 0.72 : isElectron ? 0.28 : 0.38),
       accent: step % 4 === 0 || step % 4 === 3 || phraseFill
     });
   }

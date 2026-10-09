@@ -24,6 +24,9 @@ export class SynthVoices {
   private channels: Record<'bass' | 'lead' | 'pad' | 'perc' | 'fx', VoiceChannel>;
   private activeSources = new Set<AudioScheduledSourceNode>();
   private noiseBuffer: AudioBuffer;
+  private acidShaper: WaveShaperNode;
+  private lastAcidFrequency = 0;
+  private lastAcidTime = -1;
 
   constructor(
     private context: AudioContext,
@@ -44,6 +47,16 @@ export class SynthVoices {
     this.channels.pad.filter.frequency.value = 1_300;
     this.channels.perc.filter.frequency.value = 12_000;
     this.channels.fx.filter.frequency.value = 2_100;
+    this.acidShaper = this.context.createWaveShaper();
+    const driveCurve = new Float32Array(512);
+    const normalizer = Math.tanh(3.2);
+    for (let index = 0; index < driveCurve.length; index += 1) {
+      const sample = (index * 2) / (driveCurve.length - 1) - 1;
+      driveCurve[index] = Math.tanh(sample * 3.2) / normalizer;
+    }
+    this.acidShaper.curve = driveCurve;
+    this.acidShaper.oversample = '2x';
+    this.acidShaper.connect(this.channels.lead.input);
     this.noiseBuffer = this.createNoiseBuffer(0.5);
   }
 
@@ -56,8 +69,9 @@ export class SynthVoices {
     this.channels.perc.gain.gain.setTargetAtTime(settings.synthPercussionVolume * 0.92, now, 0.05);
     const effects = Math.max(0, Math.min(1, settings.synthEffectsAmount));
     this.delayFeedback.gain.setTargetAtTime(0.08 + effects * 0.24, now, 0.08);
-    for (const channel of Object.values(this.channels)) {
-      channel.send.gain.setTargetAtTime(effects * 0.11, now, 0.08);
+    for (const [name, channel] of Object.entries(this.channels)) {
+      const sendAmount = name === 'lead' ? 0.3 : name === 'fx' ? 0.34 : 0.11;
+      channel.send.gain.setTargetAtTime(effects * sendAmount, now, 0.08);
     }
   }
 
@@ -68,7 +82,7 @@ export class SynthVoices {
     this.channels.lead.filter.frequency.setTargetAtTime((1_000 + speedRatio * 1_450 + energy * 1_050 + steeringAmount * 850) * characterBrightness, time, 0.09);
     this.channels.lead.filter.Q.setTargetAtTime(0.7 + tension * 3.2 + steeringAmount * 1.6, time, 0.12);
     this.channels.lead.panner.pan.setTargetAtTime(Math.max(-0.42, Math.min(0.42, steering * 0.28)), time, 0.12);
-    this.channels.bass.filter.frequency.setTargetAtTime(620 + energy * 420 + (shieldActive ? 100 : 0), time, 0.12);
+    this.channels.bass.filter.frequency.setTargetAtTime(720 + energy * 440 + (shieldActive ? 120 : 0), time, 0.12);
     this.channels.pad.filter.frequency.setTargetAtTime((800 + energy * 650 + (shieldActive ? 380 : 0)) * (particleId === 'neutron' ? 0.75 : 1), time, 0.2);
     this.channels.pad.panner.pan.setTargetAtTime(Math.max(-0.34, Math.min(0.34, steering * 0.18)), time, 0.2);
     this.channels.fx.filter.frequency.setTargetAtTime(1_200 + energy * 2_500, time, 0.14);
@@ -106,12 +120,39 @@ export class SynthVoices {
     sub.type = 'sine';
     sub.frequency.setValueAtTime(frequency * 0.5, time);
     subGain.gain.value = particleId === 'neutron' ? 0.28 : 0.18;
-    this.envelope(envelope, time, Math.min(0.025, duration * 0.22), velocity * 0.72, duration, 0.1);
+    this.envelope(envelope, time, 0.004, velocity * 0.78, duration, 0.045);
     body.connect(envelope);
     sub.connect(subGain);
     subGain.connect(envelope);
     envelope.connect(this.channels.bass.input);
-    this.startSources([body, sub], time, duration + 0.14, [envelope, subGain]);
+    this.startSources([body, sub], time, duration + 0.06, [envelope, subGain]);
+  }
+
+  playAcid(midi: number, time: number, duration: number, velocity: number, pan: number, accent: boolean): void {
+    const frequency = midiToFrequency(midi);
+    const oscillator = this.context.createOscillator();
+    const filter = this.context.createBiquadFilter();
+    const envelope = this.context.createGain();
+    const notePan = this.context.createStereoPanner();
+    oscillator.type = 'sawtooth';
+    const glides = this.lastAcidTime >= 0 && time - this.lastAcidTime < 0.32;
+    oscillator.frequency.setValueAtTime(glides ? this.lastAcidFrequency : frequency, time);
+    if (glides) oscillator.frequency.exponentialRampToValueAtTime(frequency, time + 0.035);
+    this.lastAcidFrequency = frequency;
+    this.lastAcidTime = time;
+
+    filter.type = 'lowpass';
+    filter.Q.setValueAtTime(accent ? 12 : 8, time);
+    filter.frequency.setValueAtTime(accent ? 2_600 : 1_700, time);
+    filter.frequency.exponentialRampToValueAtTime(accent ? 8_800 : 5_400, time + 0.022);
+    filter.frequency.exponentialRampToValueAtTime(accent ? 1_850 : 1_150, time + Math.max(0.07, duration));
+    notePan.pan.setValueAtTime(Math.max(-0.72, Math.min(0.72, pan)), time);
+    this.envelope(envelope, time, 0.003, velocity * (accent ? 0.72 : 0.54), duration, 0.045);
+    oscillator.connect(filter);
+    filter.connect(envelope);
+    envelope.connect(notePan);
+    notePan.connect(this.acidShaper);
+    this.startSources([oscillator], time, duration + 0.07, [filter, envelope, notePan]);
   }
 
   playLead(midi: number, time: number, duration: number, velocity: number, pan: number, particleId: ParticleId): void {
@@ -183,6 +224,28 @@ export class SynthVoices {
     this.startSources([oscillator], time, duration + 0.16, [envelope]);
   }
 
+  playPsyRiser(time: number, duration: number, velocity: number): void {
+    const source = this.context.createBufferSource();
+    const filter = this.context.createBiquadFilter();
+    const envelope = this.context.createGain();
+    const pan = this.context.createStereoPanner();
+    source.buffer = this.noiseBuffer;
+    filter.type = 'highpass';
+    filter.Q.setValueAtTime(1.4, time);
+    filter.frequency.setValueAtTime(280, time);
+    filter.frequency.exponentialRampToValueAtTime(11_000, time + duration);
+    pan.pan.setValueAtTime(-0.62, time);
+    pan.pan.linearRampToValueAtTime(0.62, time + duration);
+    envelope.gain.setValueAtTime(0.0001, time);
+    envelope.gain.linearRampToValueAtTime(velocity * 0.22, time + duration * 0.86);
+    envelope.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+    source.connect(filter);
+    filter.connect(envelope);
+    envelope.connect(pan);
+    pan.connect(this.channels.fx.input);
+    this.startSources([source], time, duration + 0.025, [filter, envelope, pan]);
+  }
+
   playImpact(time: number, particleId: ParticleId): void {
     this.playKick(time, 0.92);
     this.playNoise(time, 0.2, 0.52, 460, 'bandpass');
@@ -197,10 +260,13 @@ export class SynthVoices {
         // A source may have reached its scheduled end already.
       }
     }
+    this.lastAcidFrequency = 0;
+    this.lastAcidTime = -1;
   }
 
   disconnect(): void {
     this.stopAll();
+    this.acidShaper.disconnect();
     for (const channel of Object.values(this.channels)) {
       channel.input.disconnect();
       channel.filter.disconnect();

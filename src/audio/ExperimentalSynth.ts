@@ -249,8 +249,9 @@ export class ExperimentalSynth {
     else if (event.type === 'hat') this.voices.playHat(time, event.velocity);
     else if (event.type === 'snare') this.voices.playSnare(time, event.velocity);
     else if (event.type === 'bass') this.voices.playBass(event.midi, time, event.duration, event.velocity, state.particleId);
-    else if (event.type === 'lead') this.voices.playLead(event.midi, time, event.duration, event.velocity, event.pan, state.particleId);
-    else this.voices.playPad(event.notes, time, event.duration, event.velocity, state.particleId);
+    else if (event.type === 'acid') this.voices.playAcid(event.midi, time, event.duration, event.velocity, event.pan, event.accent);
+    else if (event.type === 'pad') this.voices.playPad(event.notes, time, event.duration, event.velocity, state.particleId);
+    else this.voices.playPsyRiser(time, event.duration, event.velocity);
   }
 
   private createRunSeed(): number {
